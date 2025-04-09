@@ -7,6 +7,7 @@ import { PlatformPlanGuard } from "@/modules/auth/guards/billing/platform-plan.g
 import { IsAdminAPIEnabledGuard } from "@/modules/auth/guards/organizations/is-admin-api-enabled.guard";
 import { IsOrgGuard } from "@/modules/auth/guards/organizations/is-org.guard";
 import { RolesGuard } from "@/modules/auth/guards/roles/roles.guard";
+import { IsTeamInOrg } from "@/modules/auth/guards/teams/is-team-in-org.guard";
 import { CreateOrganizationAttributeOptionInput } from "@/modules/organizations/attributes/options/inputs/create-organization-attribute-option.input";
 import { FilterAssignedOptionsQueryDto } from "@/modules/organizations/attributes/options/inputs/filter-assigned-options.input";
 import { FilterUsersByOptionsQueryDto } from "@/modules/organizations/attributes/options/inputs/filter-users-by-options.input";
@@ -193,6 +194,7 @@ export class OrganizationsAttributesOptionsController {
 
   @Roles("ORG_MEMBER")
   @PlatformPlan("ESSENTIALS")
+  @UseGuards(IsTeamInOrg)
   @Get("/teams/:teamId/attributes/:attributeSlug/options/assigned")
   @ApiOperation({ summary: "Get assigned options for an attribute filtered by user assignments" })
   async getAssignedOptionsFilteredByUserAssignments(
@@ -217,6 +219,7 @@ export class OrganizationsAttributesOptionsController {
 
   @Roles("ORG_MEMBER")
   @PlatformPlan("ESSENTIALS")
+  @UseGuards(IsTeamInOrg)
   @Get("/teams/:teamId/users")
   @ApiOperation({ summary: "Get users filtered by attribute options" })
   async getUsersByAttributeOptions(
