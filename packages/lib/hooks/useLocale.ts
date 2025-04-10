@@ -1,24 +1,24 @@
+"use client";
+
 import { createInstance } from "i18next";
 import type { TFunction, i18n } from "i18next";
-import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAtomsContext } from "@calcom/atoms/hooks/useAtomsContext";
-import { AppRouterI18nContext } from "@calcom/web/app/AppRouterI18nProvider";
 
-type useLocaleReturnType = {
+type UseLocaleReturnType = {
   i18n: i18n;
   t: TFunction;
   isLocaleReady: boolean;
 };
 
 // @internal
-const useClientLocale = (namespace: Parameters<typeof useTranslation>[0] = "common"): useLocaleReturnType => {
+const useClientLocale = (namespace: Parameters<typeof useTranslation>[0] = "common"): UseLocaleReturnType => {
   const context = useAtomsContext();
   const { i18n, t } = useTranslation(namespace);
   const isLocaleReady = Object.keys(i18n).length > 0;
   if (context?.clientId) {
-    return { i18n: context.i18n, t: context.t, isLocaleReady: true } as unknown as useLocaleReturnType;
+    return { i18n: context.i18n, t: context.t, isLocaleReady: true } as unknown as UseLocaleReturnType;
   }
   return {
     i18n,
@@ -28,14 +28,21 @@ const useClientLocale = (namespace: Parameters<typeof useTranslation>[0] = "comm
 };
 
 // @internal
-const serverI18nInstances = new Map();
+const serverI18nInstances = new Map<string, UseLocaleReturnType>();
 
-export const useLocale = (): useLocaleReturnType => {
-  const appRouterContext = useContext(AppRouterI18nContext);
+declare global {
+  interface Window {
+    APP_ROUTER_I18N?: { translations: Record<string, string>; ns: string; locale: string };
+  }
+}
+
+export const useLocale = (): UseLocaleReturnType => {
   const clientI18n = useClientLocale();
+  const i18nData =
+    typeof window !== "undefined" && window.APP_ROUTER_I18N ? window.APP_ROUTER_I18N : undefined;
 
-  if (appRouterContext) {
-    const { translations, locale, ns } = appRouterContext;
+  if (i18nData) {
+    const { translations, locale, ns } = i18nData;
     const instanceKey = `${locale}-${ns}`;
 
     // Check if we already have an instance for this locale and namespace
@@ -57,12 +64,10 @@ export const useLocale = (): useLocaleReturnType => {
       });
     }
 
-    return serverI18nInstances.get(instanceKey);
+    return serverI18nInstances.get(instanceKey)!;
   }
 
-  console.warn(
-    "useLocale hook is being used outside of App Router - hence this hook will use a global, client-side i18n which can cause a small flicker"
-  );
+  console.warn("useLocale: window.APP_ROUTER_I18N not available, falling back to client-side i18n");
   return {
     t: clientI18n.t,
     isLocaleReady: clientI18n.isLocaleReady,

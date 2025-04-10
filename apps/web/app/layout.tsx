@@ -2,6 +2,7 @@ import { dir } from "i18next";
 import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import { headers, cookies } from "next/headers";
+import Script from "next/script";
 import React from "react";
 
 import { getLocale } from "@calcom/features/auth/lib/getLocale";
@@ -10,7 +11,6 @@ import { IconSprites } from "@calcom/ui/components/icon";
 import { NotificationSoundHandler } from "@calcom/web/components/notification-sound-handler";
 
 import "../styles/globals.css";
-import { AppRouterI18nProvider } from "./AppRouterI18nProvider";
 import { SpeculationRules } from "./SpeculationRules";
 import { Providers } from "./providers";
 
@@ -131,6 +131,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             --font-cal: ${calFont.style.fontFamily.replace(/\'/g, "")};
           }
         `}</style>
+        <Script id="i18n-data" strategy="beforeInteractive">
+          {`window.APP_ROUTER_I18N = ${JSON.stringify({ translations, locale, ns })};`}
+        </Script>
       </head>
       <body
         className="dark:bg-default bg-subtle antialiased"
@@ -163,11 +166,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ]}
         />
 
-        <Providers>
-          <AppRouterI18nProvider translations={translations} locale={locale} ns={ns}>
-            {children}
-          </AppRouterI18nProvider>
-        </Providers>
+        <Providers>{children}</Providers>
         {!isEmbed && <NotificationSoundHandler />}
         <NotificationSoundHandler />
       </body>
