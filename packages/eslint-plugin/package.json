@@ -1,5 +1,5 @@
 {
-  "name": "@calcom/eslint-plugin-eslint",
+  "name": "@calcom/eslint",
   "sideEffects": false,
   "private": true,
   "version": "0.1.0",
