@@ -7,7 +7,14 @@ import { CalendarCache } from "../calendar-cache";
 import handler from "./cron";
 
 // Mock dependencies
-vi.mock("@calcom/lib/server/repository/selectedCalendar");
+vi.mock("@calcom/lib/server/repository/selectedCalendar", () => ({
+  SelectedCalendarRepository: {
+    getNextBatchToWatch: vi.fn(),
+    getNextBatchToUnwatch: vi.fn(),
+    updateById: vi.fn(),
+  },
+}));
+
 vi.mock("../calendar-cache");
 
 describe("Calendar Cache Cron", () => {
@@ -16,6 +23,18 @@ describe("Calendar Cache Cron", () => {
   const mockResponse = {
     json: vi.fn().mockReturnThis(),
     status: vi.fn().mockReturnThis(),
+  };
+
+  const mockCalendar = {
+    externalId: "test-calendar-id",
+    eventTypeId: 1,
+    credentialId: 1,
+    id: "test-id",
+  };
+
+  const mockCalendarCache = {
+    watchCalendar: vi.fn().mockResolvedValue(undefined),
+    unwatchCalendar: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
@@ -31,31 +50,17 @@ describe("Calendar Cache Cron", () => {
       headers: { authorization: mockApiKey },
       query: {},
     };
+
+    // Setup repository mocks
+    vi.mocked(SelectedCalendarRepository.getNextBatchToWatch).mockResolvedValue([mockCalendar]);
+    vi.mocked(SelectedCalendarRepository.getNextBatchToUnwatch).mockResolvedValue([mockCalendar]);
+    vi.mocked(SelectedCalendarRepository.updateById).mockResolvedValue(undefined);
+
+    // Setup CalendarCache mock
+    vi.mocked(CalendarCache.initFromCredentialId).mockResolvedValue(mockCalendarCache);
   });
 
   describe("Calendar Operations", () => {
-    const mockCalendar = {
-      externalId: "test-calendar-id",
-      eventTypeId: 1,
-      credentialId: 1,
-      id: "test-id",
-    };
-
-    const mockCalendarCache = {
-      watchCalendar: vi.fn().mockResolvedValue(undefined),
-      unwatchCalendar: vi.fn().mockResolvedValue(undefined),
-    };
-
-    beforeEach(() => {
-      // Mock repository methods
-      vi.mocked(SelectedCalendarRepository.getNextBatchToWatch).mockResolvedValue([mockCalendar]);
-      vi.mocked(SelectedCalendarRepository.getNextBatchToUnwatch).mockResolvedValue([mockCalendar]);
-      vi.mocked(SelectedCalendarRepository.updateById).mockResolvedValue(undefined);
-
-      // Mock CalendarCache
-      vi.mocked(CalendarCache.initFromCredentialId).mockResolvedValue(mockCalendarCache);
-    });
-
     it("should handle watch and unwatch operations successfully", async () => {
       const response = await handler(mockRequest as NextApiRequest, mockResponse);
       expect(mockResponse.json).toHaveBeenCalledWith({
