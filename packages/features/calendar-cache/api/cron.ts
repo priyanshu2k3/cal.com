@@ -10,9 +10,10 @@ import { CalendarCache } from "../calendar-cache";
 
 const validateRequest = (req: NextApiRequest) => {
   const apiKey = req.headers.authorization || req.query.apiKey;
-  if (![process.env.CRON_API_KEY, `Bearer ${process.env.CRON_SECRET}`].includes(`${apiKey}`)) {
-    throw new HttpError({ statusCode: 401, message: "Unauthorized" });
+  if ([process.env.CRON_API_KEY, `Bearer ${process.env.CRON_SECRET}`].includes(`${apiKey}`)) {
+    return;
   }
+  throw new HttpError({ statusCode: 401, message: "Unauthorized" });
 };
 
 function logRejected(result: PromiseSettledResult<unknown>) {
@@ -49,53 +50,53 @@ function getUniqueCalendarsByExternalId<
   );
 }
 
-const handleCalendarsToUnwatch = async () => {
-  const calendarsToUnwatch = await SelectedCalendarRepository.getNextBatchToUnwatch(500);
-  const calendarsWithEventTypeIdsGroupedTogether = getUniqueCalendarsByExternalId(calendarsToUnwatch);
+async function handleCalendarOperation(
+  operation: "watch" | "unwatch",
+  getBatch: () => Promise<
+    Array<{ externalId: string; eventTypeId: number | null; credentialId: number | null; id: string }>
+  >
+) {
+  const calendars = await getBatch();
+  const calendarsWithEventTypeIdsGroupedTogether = getUniqueCalendarsByExternalId(calendars);
+
   const result = await Promise.allSettled(
     Object.entries(calendarsWithEventTypeIdsGroupedTogether).map(
       async ([externalId, { eventTypeIds, credentialId, id }]) => {
         if (!credentialId) {
-          // So we don't retry on next cron run
           await SelectedCalendarRepository.updateById(id, { error: "Missing credentialId" });
-          console.log("no credentialId for SelecedCalendar: ", id);
+          console.log("no credentialId for SelectedCalendar: ", id);
           return;
         }
+
         const cc = await CalendarCache.initFromCredentialId(credentialId);
-        await cc.unwatchCalendar({ calendarId: externalId, eventTypeIds });
+        try {
+          if (operation === "watch") {
+            await cc.watchCalendar({ calendarId: externalId, eventTypeIds });
+          } else {
+            await cc.unwatchCalendar({ calendarId: externalId, eventTypeIds });
+          }
+        } catch (error) {
+          console.error(error);
+          await SelectedCalendarRepository.updateById(id, {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     )
   );
 
   result.forEach(logRejected);
   return result;
-};
-
-const handleCalendarsToWatch = async () => {
-  const calendarsToWatch = await SelectedCalendarRepository.getNextBatchToWatch(500);
-  const calendarsWithEventTypeIdsGroupedTogether = getUniqueCalendarsByExternalId(calendarsToWatch);
-  const result = await Promise.allSettled(
-    Object.entries(calendarsWithEventTypeIdsGroupedTogether).map(
-      async ([externalId, { credentialId, eventTypeIds, id }]) => {
-        if (!credentialId) {
-          // So we don't retry on next cron run
-          await SelectedCalendarRepository.updateById(id, { error: "Missing credentialId" });
-          console.log("no credentialId for SelecedCalendar: ", id);
-          return;
-        }
-        const cc = await CalendarCache.initFromCredentialId(credentialId);
-        await cc.watchCalendar({ calendarId: externalId, eventTypeIds });
-      }
-    )
-  );
-  result.forEach(logRejected);
-  return result;
-};
+}
 
 // This cron is used to activate and renew calendar subscriptions
 const handler = defaultResponder(async (request: NextApiRequest) => {
   validateRequest(request);
-  await Promise.allSettled([handleCalendarsToWatch(), handleCalendarsToUnwatch()]);
+
+  await Promise.allSettled([
+    handleCalendarOperation("watch", SelectedCalendarRepository.getNextBatchToWatch),
+    handleCalendarOperation("unwatch", SelectedCalendarRepository.getNextBatchToUnwatch),
+  ]);
 
   // TODO: Credentials can be installed on a whole team, check for selected calendars on the team
   return {
