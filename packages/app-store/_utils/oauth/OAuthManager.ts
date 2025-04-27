@@ -491,6 +491,29 @@ export class OAuthManager {
         "Token parsing error:",
         safeStringify({ issues: parsedToken.error.issues, oauth2response: json, tokenStatus })
       );
+
+      if (json && typeof json === "object") {
+        const microsoftError = json as {
+          error?: string;
+          error_description?: string;
+          error_codes?: number[];
+        };
+
+        if (
+          microsoftError.error === "invalid_grant" ||
+          (microsoftError.error_codes &&
+            (microsoftError.error_codes.includes(9002313) || microsoftError.error_codes.includes(70000)))
+        ) {
+          // For Microsoft errors, invalidate the token object
+          await this.invalidateTokenObject();
+          throw new Error(
+            `Microsoft authentication error: ${
+              microsoftError.error_description || microsoftError.error || "Invalid token"
+            }`
+          );
+        }
+      }
+
       throw new Error("Invalid token response");
     }
     return parsedToken.data;

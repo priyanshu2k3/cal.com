@@ -86,13 +86,45 @@ const TeamsVideoApiAdapter = (credential: CredentialForCalendarServiceWithTenant
         body: new URLSearchParams(params),
       });
     },
-    isTokenObjectUnusable: async function () {
-      // TODO: Implement this. As current implementation of CalendarService doesn't handle it. It hasn't been handled in the OAuthManager implementation as well.
-      // This is a placeholder for future implementation.
+    isTokenObjectUnusable: async function (response) {
+      const myLog = console.log;
+      try {
+        const clonedResponse = response.clone();
+        const responseBody = await clonedResponse.json();
+        myLog("isTokenObjectUnusable response:", responseBody);
+
+        if (
+          responseBody.error === "invalid_grant" ||
+          (responseBody.error_codes &&
+            (responseBody.error_codes.includes(9002313) || responseBody.error_codes.includes(70000)))
+        ) {
+          return {
+            reason: responseBody.error || "Microsoft authentication error",
+          };
+        }
+      } catch (error) {
+        myLog("Error parsing response in isTokenObjectUnusable:", error);
+      }
       return null;
     },
-    isAccessTokenUnusable: async function () {
-      // TODO: Implement this
+    isAccessTokenUnusable: async function (response) {
+      const myLog = console.log;
+      try {
+        const clonedResponse = response.clone();
+        const responseBody = await clonedResponse.json();
+        myLog("isAccessTokenUnusable response:", responseBody);
+
+        if (
+          responseBody.error === "invalid_token" ||
+          (responseBody.error_codes && responseBody.error_codes.includes(70000))
+        ) {
+          return {
+            reason: responseBody.error || "Microsoft access token error",
+          };
+        }
+      } catch (error) {
+        myLog("Error parsing response in isAccessTokenUnusable:", error);
+      }
       return null;
     },
     invalidateTokenObject: () => oAuthManagerHelper.invalidateCredential(credential.id),
@@ -194,59 +226,89 @@ const TeamsVideoApiAdapter = (credential: CredentialForCalendarServiceWithTenant
       return Promise.resolve([]);
     },
     updateMeeting: async (bookingRef: PartialReference, event: CalendarEvent) => {
-      const resultString = await auth
-        .requestRaw({
-          url: `${await getUserEndpoint()}/onlineMeetings`,
-          options: {
-            method: "POST",
-            body: JSON.stringify(translateEvent(event)),
-          },
-        })
-        .then(handleErrorsRaw);
+      try {
+        const resultString = await auth
+          .requestRaw({
+            url: `${await getUserEndpoint()}/onlineMeetings`,
+            options: {
+              method: "POST",
+              body: JSON.stringify(translateEvent(event)),
+            },
+          })
+          .then(handleErrorsRaw);
 
-      const resultObject = JSON.parse(resultString);
+        const resultObject = JSON.parse(resultString);
 
-      return Promise.resolve({
-        type: "office365_video",
-        id: resultObject.id,
-        password: "",
-        url: resultObject.joinWebUrl || resultObject.joinUrl,
-      });
+        return {
+          type: "office365_video",
+          id: resultObject.id,
+          password: "",
+          url: resultObject.joinWebUrl || resultObject.joinUrl,
+        };
+      } catch (error) {
+        console.error("[ERROR] MS Teams updateMeeting failed:", error);
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (
+          errorMessage.includes("Invalid token") ||
+          errorMessage.includes("invalid_grant") ||
+          errorMessage.includes("Microsoft authentication error")
+        ) {
+          await oAuthManagerHelper.invalidateCredential(credential.id);
+
+          throw new Error("MS Teams integration authentication failed. Falling back to Cal Video.");
+        }
+
+        throw error;
+      }
     },
     deleteMeeting: () => {
       return Promise.resolve([]);
     },
     createMeeting: async (event: CalendarEvent): Promise<VideoCallData> => {
-      console.log("=======>createMeeting: ");
+      try {
+        const url = `${await getUserEndpoint()}/onlineMeetings`;
+        const resultString = await auth
+          .requestRaw({
+            url,
+            options: {
+              method: "POST",
+              body: JSON.stringify(translateEvent(event)),
+            },
+          })
+          .then(handleErrorsRaw);
 
-      const url = `${await getUserEndpoint()}/onlineMeetings`;
-      console.log("urllllllllllll: ", url);
-      console.log("translateEvent(event): ", translateEvent(event));
-      const resultString = await auth
-        .requestRaw({
-          url,
-          options: {
-            method: "POST",
-            body: JSON.stringify(translateEvent(event)),
-          },
-        })
-        .then(handleErrorsRaw);
+        const resultObject = JSON.parse(resultString);
 
-      const resultObject = JSON.parse(resultString);
+        if (!resultObject.id || !resultObject.joinUrl || !resultObject.joinWebUrl) {
+          throw new HttpError({
+            statusCode: 500,
+            message: `Error creating MS Teams meeting: ${resultObject.error?.message || "Unknown error"}`,
+          });
+        }
 
-      if (!resultObject.id || !resultObject.joinUrl || !resultObject.joinWebUrl) {
-        throw new HttpError({
-          statusCode: 500,
-          message: `Error creating MS Teams meeting: ${resultObject.error.message}`,
-        });
+        return {
+          type: "office365_video",
+          id: resultObject.id,
+          password: "",
+          url: resultObject.joinWebUrl || resultObject.joinUrl,
+        };
+      } catch (error) {
+        console.error("[ERROR] MS Teams createMeeting failed:", error);
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (
+          errorMessage.includes("Invalid token") ||
+          errorMessage.includes("invalid_grant") ||
+          errorMessage.includes("Microsoft authentication error")
+        ) {
+          await oAuthManagerHelper.invalidateCredential(credential.id);
+
+          throw new Error("MS Teams integration authentication failed. Falling back to Cal Video.");
+        }
+
+        throw error;
       }
-
-      return Promise.resolve({
-        type: "office365_video",
-        id: resultObject.id,
-        password: "",
-        url: resultObject.joinWebUrl || resultObject.joinUrl,
-      });
     },
   };
 };
