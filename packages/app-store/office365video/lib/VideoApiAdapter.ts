@@ -6,6 +6,7 @@ import {
 } from "@calcom/lib/CalendarAppError";
 import { handleErrorsRaw } from "@calcom/lib/errors";
 import { HttpError } from "@calcom/lib/http-error";
+import { getTranslation } from "@calcom/lib/server/i18n";
 import type { CalendarEvent } from "@calcom/types/Calendar";
 import type { CredentialForCalendarServiceWithTenantId } from "@calcom/types/Credential";
 import type { PartialReference } from "@calcom/types/EventManager";
@@ -256,7 +257,8 @@ const TeamsVideoApiAdapter = (credential: CredentialForCalendarServiceWithTenant
         ) {
           await oAuthManagerHelper.invalidateCredential(credential.id);
 
-          throw new Error("MS Teams integration authentication failed. Falling back to Cal Video.");
+          const t = await getTranslation("en", "common");
+          throw new Error(t("ms_teams_authentication_failed"));
         }
 
         throw error;
@@ -266,49 +268,73 @@ const TeamsVideoApiAdapter = (credential: CredentialForCalendarServiceWithTenant
       return Promise.resolve([]);
     },
     createMeeting: async (event: CalendarEvent): Promise<VideoCallData> => {
-      try {
-        const url = `${await getUserEndpoint()}/onlineMeetings`;
-        const resultString = await auth
-          .requestRaw({
-            url,
-            options: {
-              method: "POST",
-              body: JSON.stringify(translateEvent(event)),
-            },
-          })
-          .then(handleErrorsRaw);
+      const MAX_RETRY_ATTEMPTS = 2;
+      let retryCount = 0;
 
-        const resultObject = JSON.parse(resultString);
+      async function attemptCreateMeeting() {
+        try {
+          const url = `${await getUserEndpoint()}/onlineMeetings`;
+          const resultString = await auth
+            .requestRaw({
+              url,
+              options: {
+                method: "POST",
+                body: JSON.stringify(translateEvent(event)),
+              },
+            })
+            .then(handleErrorsRaw);
 
-        if (!resultObject.id || !resultObject.joinUrl || !resultObject.joinWebUrl) {
-          throw new HttpError({
-            statusCode: 500,
-            message: `Error creating MS Teams meeting: ${resultObject.error?.message || "Unknown error"}`,
-          });
+          const resultObject = JSON.parse(resultString);
+
+          if (!resultObject.id || !resultObject.joinUrl || !resultObject.joinWebUrl) {
+            throw new HttpError({
+              statusCode: 500,
+              message: `Error creating MS Teams meeting: ${resultObject.error?.message || "Unknown error"}`,
+            });
+          }
+
+          return {
+            type: "office365_video",
+            id: resultObject.id,
+            password: "",
+            url: resultObject.joinWebUrl || resultObject.joinUrl,
+          };
+        } catch (error) {
+          console.error(`[ERROR] MS Teams createMeeting attempt ${retryCount + 1} failed:`, error);
+
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isAuthError =
+            errorMessage.includes("Invalid token") ||
+            errorMessage.includes("invalid_grant") ||
+            errorMessage.includes("Microsoft authentication error") ||
+            errorMessage.includes("access token expired");
+
+          if (isAuthError && retryCount < MAX_RETRY_ATTEMPTS) {
+            retryCount++;
+            console.log(
+              `Retrying MS Teams meeting creation (attempt ${retryCount} of ${MAX_RETRY_ATTEMPTS})...`
+            );
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return attemptCreateMeeting();
+          }
+
+          if (isAuthError) {
+            await oAuthManagerHelper.invalidateCredential(credential.id);
+
+            const t = await getTranslation("en", "common");
+            throw new Error(
+              `${t("ms_teams_connection_error")} ${t("ms_teams_connection_error_fallback")} ${t(
+                "ms_teams_connection_error_instruction"
+              )}`
+            );
+          }
+
+          throw error;
         }
-
-        return {
-          type: "office365_video",
-          id: resultObject.id,
-          password: "",
-          url: resultObject.joinWebUrl || resultObject.joinUrl,
-        };
-      } catch (error) {
-        console.error("[ERROR] MS Teams createMeeting failed:", error);
-
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (
-          errorMessage.includes("Invalid token") ||
-          errorMessage.includes("invalid_grant") ||
-          errorMessage.includes("Microsoft authentication error")
-        ) {
-          await oAuthManagerHelper.invalidateCredential(credential.id);
-
-          throw new Error("MS Teams integration authentication failed. Falling back to Cal Video.");
-        }
-
-        throw error;
       }
+
+      return attemptCreateMeeting();
     },
   };
 };
