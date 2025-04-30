@@ -54,12 +54,13 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     const { context } = requestProps;
 
     const request = context.switchToHttp().getRequest<Request>();
+    const IP = request?.headers?.["cf-connecting-ip"] ?? request?.headers?.["CF-Connecting-IP"] ?? request.ip;
     const response = context.switchToHttp().getResponse<Response>();
     const tracker = await this.getTracker(request);
-    this.logger.log(
+    this.logger.verbose(
       `Tracker "${tracker}" generated based on: Bearer token "${request.get(
         "Authorization"
-      )}", OAuth client ID "${request.get(X_CAL_CLIENT_ID)}" and IP "${request.ip}"`
+      )}", OAuth client ID "${request.get(X_CAL_CLIENT_ID)}" and IP "${IP}"`
     );
 
     if (tracker.startsWith("api_key_")) {
@@ -81,7 +82,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     }
 
     if (allLimitsBlocked) {
-      throw new ThrottlerException("Too many requests. Please try again later.");
+      throw new ThrottlerException("CustomThrottlerGuard - Too many requests. Please try again later.");
     }
 
     return true;
@@ -89,13 +90,13 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
 
   private async handleNonApiKeyRequest(tracker: string, response: Response): Promise<boolean> {
     const rateLimit = this.getDefaultRateLimit(tracker);
-    this.logger.log(`Tracker "${tracker}" uses default rate limits because it is not tracking api key:
+    this.logger.verbose(`Tracker "${tracker}" uses default rate limits because it is not tracking api key:
       ${JSON.stringify(rateLimit, null, 2)}
     `);
 
     const { isBlocked } = await this.incrementRateLimit(tracker, rateLimit, response);
     if (isBlocked) {
-      throw new ThrottlerException("Too many requests. Please try again later.");
+      throw new ThrottlerException("CustomThrottlerGuard - Too many requests. Please try again later.");
     }
 
     return true;
@@ -135,7 +136,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
 
     const cachedRateLimits = await this.storageService.redis.get(cacheKey);
     if (cachedRateLimits) {
-      this.logger.log(`Tracker "${tracker}" rate limits retrieved from redis cache:
+      this.logger.verbose(`Tracker "${tracker}" rate limits retrieved from redis cache:
         ${cachedRateLimits}
       `);
       return rateLimitsSchema.parse(JSON.parse(cachedRateLimits));
@@ -149,7 +150,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     });
 
     if (!apiKeyRecord) {
-      throw new UnauthorizedException("Invalid API Key");
+      throw new UnauthorizedException("CustomThrottlerGuard - Invalid API Key");
     }
 
     rateLimits = await this.dbRead.prisma.rateLimit.findMany({
@@ -158,13 +159,13 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     });
 
     if (rateLimits) {
-      this.logger.log(`Tracker "${tracker}" rate limits retrieved from database:
+      this.logger.verbose(`Tracker "${tracker}" rate limits retrieved from database:
         ${JSON.stringify(rateLimits, null, 2)}`);
     }
 
     if (!rateLimits || rateLimits.length === 0) {
       rateLimits = [this.getDefaultRateLimit(tracker)];
-      this.logger.log(`Tracker "${tracker}" rate limits not found in database. Using default rate limits:
+      this.logger.verbose(`Tracker "${tracker}" rate limits not found in database. Using default rate limits:
         ${JSON.stringify(rateLimits, null, 2)}`);
     }
 
@@ -194,10 +195,10 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     );
     response.setHeader(`X-RateLimit-Reset-${nameFirstUpper}`, timeToBlockExpire || timeToExpire);
 
-    this.logger.log(
+    this.logger.verbose(
       `Tracker "${tracker}" rate limit "${name}" incremented. isBlocked ${isBlocked}, totalHits ${totalHits}, timeToExpire ${timeToExpire}, timeToBlockExpire ${timeToBlockExpire}`
     );
-    this.logger.log(
+    this.logger.verbose(
       `Tracker "${tracker}" rate limit "${name}" response headers:
         X-RateLimit-Limit-${nameFirstUpper}: ${limit},
         X-RateLimit-Remaining-${nameFirstUpper}: ${timeToBlockExpire ? 0 : Math.max(0, limit - totalHits)},
@@ -209,6 +210,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
 
   protected async getTracker(request: Request): Promise<string> {
     const authorizationHeader = request.get("Authorization")?.replace("Bearer ", "");
+    const IP = request?.headers?.["cf-connecting-ip"] ?? request?.headers?.["CF-Connecting-IP"] ?? request.ip;
 
     if (authorizationHeader) {
       const apiKeyPrefix = getEnv("API_KEY_PREFIX", "cal_");
@@ -223,11 +225,11 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
       return `oauth_client_${oauthClientId}`;
     }
 
-    if (request.ip) {
-      return `ip_${request.ip}`;
+    if (IP) {
+      return `ip_${IP}`;
     }
 
-    this.logger.log(`no tracker found: ${request.url}`);
+    this.logger.verbose(`no tracker found: ${request.url}`);
     return "unknown";
   }
 }

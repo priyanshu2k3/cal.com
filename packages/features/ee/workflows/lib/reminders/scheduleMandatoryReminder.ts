@@ -11,13 +11,25 @@ const log = logger.getSubLogger({ prefix: ["[scheduleMandatoryReminder]"] });
 
 export type NewBookingEventType = Awaited<ReturnType<typeof getDefaultEvent>> | getEventTypeResponse;
 
-export async function scheduleMandatoryReminder(
-  evt: ExtendedCalendarEvent,
-  workflows: Workflow[],
-  requiresConfirmation: boolean,
-  hideBranding: boolean,
-  seatReferenceUid: string | undefined
-) {
+export async function scheduleMandatoryReminder({
+  evt,
+  workflows,
+  requiresConfirmation,
+  hideBranding,
+  seatReferenceUid,
+  isPlatformNoEmail = false,
+  isDryRun = false,
+}: {
+  evt: ExtendedCalendarEvent;
+  workflows: Workflow[];
+  requiresConfirmation: boolean;
+  hideBranding: boolean;
+  seatReferenceUid: string | undefined;
+  isPlatformNoEmail?: boolean;
+  isDryRun?: boolean;
+}) {
+  if (isDryRun) return;
+  if (isPlatformNoEmail) return;
   try {
     const hasExistingWorkflow = workflows.some((workflow) => {
       return (
@@ -45,12 +57,14 @@ export async function scheduleMandatoryReminder(
             time: 1,
             timeUnit: TimeUnit.HOUR,
           },
-          sendTo: filteredAttendees,
+          sendTo: filteredAttendees.map((attendee) => attendee.email),
           template: WorkflowTemplates.REMINDER,
           hideBranding,
           seatReferenceUid,
           includeCalendarEvent: false,
           isMandatoryReminder: true,
+          // Template is fixed so we don't have to verify
+          verifiedAt: new Date(),
         });
       } catch (error) {
         log.error("Error while scheduling mandatory reminders", JSON.stringify({ error }));

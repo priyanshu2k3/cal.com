@@ -34,7 +34,13 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
     teamId,
     isVerificationPending = false,
     seatReferenceUid,
+    verifiedAt,
   } = args;
+
+  if (!verifiedAt) {
+    log.warn(`Workflow step ${workflowStepId} not verified`);
+    return;
+  }
 
   const { startTime, endTime } = evt;
   const uid = evt.uid as string;
@@ -76,6 +82,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
       textMessage =
         whatsappReminderTemplate(
           false,
+          evt.organizer.language.locale,
           action,
           evt.organizer.timeFormat,
           evt.startTime,
@@ -89,6 +96,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
       textMessage =
         whatsappEventCancelledTemplate(
           false,
+          evt.organizer.language.locale,
           action,
           evt.organizer.timeFormat,
           evt.startTime,
@@ -102,6 +110,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
       textMessage =
         whatsappEventRescheduledTemplate(
           false,
+          evt.organizer.language.locale,
           action,
           evt.organizer.timeFormat,
           evt.startTime,
@@ -115,6 +124,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
       textMessage =
         whatsappEventCompletedTemplate(
           false,
+          evt.organizer.language.locale,
           action,
           evt.organizer.timeFormat,
           evt.startTime,
@@ -128,6 +138,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs) =
       textMessage =
         whatsappReminderTemplate(
           false,
+          evt.organizer.language.locale,
           action,
           evt.organizer.timeFormat,
           evt.startTime,

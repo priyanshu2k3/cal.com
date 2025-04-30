@@ -12,6 +12,7 @@ type StatusAggregate = {
   rescheduled: number;
   cancelled: number;
   noShowHost: number;
+  noShowGuests: number;
   _all: number;
   uncompleted: number;
 };
@@ -73,20 +74,30 @@ class EventsInsights {
     const whereClause = buildSqlCondition(whereConditional);
 
     const data = await prisma.$queryRaw<
-      { periodStart: Date; bookingsCount: number; timeStatus: string; noShowHost: boolean }[]
+      {
+        periodStart: Date;
+        bookingsCount: number;
+        timeStatus: string;
+        noShowHost: boolean;
+        noShowGuests: number;
+      }[]
     >`
     SELECT
       "periodStart",
       CAST(COUNT(*) AS INTEGER) AS "bookingsCount",
+      CAST(COUNT(CASE WHEN "isNoShowGuest" = true THEN 1 END) AS INTEGER) AS "noShowGuests",
       "timeStatus",
       "noShowHost"
     FROM (
       SELECT
         DATE_TRUNC(${timeView}, "createdAt") AS "periodStart",
+        "a"."noShow" AS "isNoShowGuest",
         "timeStatus",
         "noShowHost"
       FROM
         "BookingTimeStatus"
+      JOIN
+        "Attendee" "a" ON "a"."bookingId" = "BookingTimeStatus"."id"
       WHERE
         "createdAt" BETWEEN ${formattedStartDate}::timestamp AND ${formattedEndDate}::timestamp
         AND ${Prisma.raw(whereClause)}
@@ -100,7 +111,7 @@ class EventsInsights {
   `;
 
     const aggregate: AggregateResult = {};
-    data.forEach(({ periodStart, bookingsCount, timeStatus, noShowHost }) => {
+    data.forEach(({ periodStart, bookingsCount, timeStatus, noShowHost, noShowGuests }) => {
       const formattedDate = dayjs(periodStart).format("MMM D, YYYY");
 
       if (dayjs(periodStart).isAfter(endDate)) {
@@ -116,6 +127,7 @@ class EventsInsights {
           noShowHost: 0,
           _all: 0,
           uncompleted: 0,
+          noShowGuests: 0,
         };
       }
 
@@ -130,6 +142,9 @@ class EventsInsights {
       if (noShowHost) {
         aggregate[formattedDate]["noShowHost"] += Number(bookingsCount);
       }
+
+      // Track no-show guests explicitly
+      aggregate[formattedDate]["noShowGuests"] += noShowGuests;
     });
 
     // Generate a complete list of expected date labels based on the timeline
@@ -160,6 +175,7 @@ class EventsInsights {
           rescheduled: 0,
           cancelled: 0,
           noShowHost: 0,
+          noShowGuests: 0,
           _all: 0,
           uncompleted: 0,
         };
@@ -167,6 +183,27 @@ class EventsInsights {
     });
 
     return aggregate;
+  };
+
+  static getTotalNoShowGuests = async (where: Prisma.BookingTimeStatusWhereInput) => {
+    const bookings = await prisma.bookingTimeStatus.findMany({
+      where,
+      select: {
+        id: true,
+      },
+    });
+
+    const { _count: totalNoShowGuests } = await prisma.attendee.aggregate({
+      where: {
+        bookingId: {
+          in: bookings.map((booking) => booking.id),
+        },
+        noShow: true,
+      },
+      _count: true,
+    });
+
+    return totalNoShowGuests;
   };
 
   static countGroupedByStatus = async (where: Prisma.BookingTimeStatusWhereInput) => {
@@ -344,9 +381,15 @@ class EventsInsights {
     }
   ) => {
     // Obtain the where conditional
-    const whereConditional = await this.obtainWhereConditional(props);
+    const whereConditional = await this.obtainWhereConditionalForDownload(props);
+    const limit = props.limit ?? 100; // Default batch size
+    const offset = props.offset ?? 0;
 
-    const csvData = await prisma.bookingTimeStatus.findMany({
+    const totalCountPromise = prisma.bookingTimeStatus.count({
+      where: whereConditional,
+    });
+
+    const csvDataPromise = prisma.bookingTimeStatus.findMany({
       select: {
         id: true,
         uid: true,
@@ -365,12 +408,16 @@ class EventsInsights {
         noShowHost: true,
       },
       where: whereConditional,
+      skip: offset,
+      take: limit,
     });
+
+    const [totalCount, csvData] = await Promise.all([totalCountPromise, csvDataPromise]);
 
     const uids = csvData.filter((b) => b.uid !== null).map((b) => b.uid as string);
 
     if (uids.length === 0) {
-      return csvData;
+      return { data: csvData, total: totalCount };
     }
 
     const bookings = await prisma.booking.findMany({
@@ -385,13 +432,15 @@ class EventsInsights {
           select: {
             name: true,
             email: true,
+            noShow: true,
           },
         },
       },
     });
+
     const bookingMap = new Map(bookings.map((booking) => [booking.uid, booking.attendees[0] || null]));
 
-    return csvData.map((bookingTimeStatus) => {
+    const data = csvData.map((bookingTimeStatus) => {
       if (!bookingTimeStatus.uid) {
         // should not be reached because we filtered above
         return bookingTimeStatus;
@@ -405,14 +454,19 @@ class EventsInsights {
 
       return {
         ...bookingTimeStatus,
+        noShowGuest: booker.noShow,
         bookerEmail: booker.email,
         bookerName: booker.name,
       };
     });
+
+    return { data, total: totalCount };
   };
 
   /*
-   * This is meant to be used for all functions inside insights router, ideally we should have a view that have all of this data
+   * This is meant to be used for all functions inside insights router,
+   * but it's currently used only for CSV download.
+   * Ideally we should have a view that have all of this data
    * The order where will be from the most specific to the least specific
    * starting from the top will be:
    * - memberUserId
@@ -426,7 +480,7 @@ class EventsInsights {
    * @param props
    * @returns
    */
-  static obtainWhereConditional = async (
+  static obtainWhereConditionalForDownload = async (
     props: RawDataInput & { organizationId: number | null; isOrgAdminOrOwner: boolean | null }
   ) => {
     const {
@@ -443,7 +497,6 @@ class EventsInsights {
 
     // Obtain the where conditional
     let whereConditional: Prisma.BookingTimeStatusWhereInput = {};
-    let teamConditional: Prisma.TeamWhereInput = {};
 
     if (startDate && endDate) {
       whereConditional.createdAt = {
@@ -453,14 +506,7 @@ class EventsInsights {
     }
 
     if (eventTypeId) {
-      whereConditional["OR"] = [
-        {
-          eventTypeId,
-        },
-        {
-          eventParentId: eventTypeId,
-        },
-      ];
+      whereConditional["eventTypeId"] = eventTypeId;
     }
     if (memberUserId) {
       whereConditional["userId"] = memberUserId;
@@ -482,14 +528,12 @@ class EventsInsights {
       if (teamsFromOrg.length === 0) {
         return {};
       }
-      teamConditional = {
-        id: {
-          in: [organizationId, ...teamsFromOrg.map((t) => t.id)],
-        },
-      };
+      const teamIds: number[] = [organizationId, ...teamsFromOrg.map((t) => t.id)];
       const usersFromOrg = await prisma.membership.findMany({
         where: {
-          team: teamConditional,
+          teamId: {
+            in: teamIds,
+          },
           accepted: true,
         },
         select: {
@@ -508,7 +552,7 @@ class EventsInsights {
           },
           {
             teamId: {
-              in: [organizationId, ...teamsFromOrg.map((t) => t.id)],
+              in: teamIds,
             },
             isTeamBooking: true,
           },
@@ -601,16 +645,6 @@ class EventsInsights {
 
     return !!isOwnerAdminOfParentTeam;
   };
-
-  static objectToCsv(data: Record<string, unknown>[]) {
-    // if empty data return empty string
-    if (!data.length) {
-      return "";
-    }
-    const header = `${Object.keys(data[0]).join(",")}\n`;
-    const rows = data.map((obj: any) => `${Object.values(obj).join(",")}\n`);
-    return header + rows.join("");
-  }
 }
 
 export { EventsInsights };

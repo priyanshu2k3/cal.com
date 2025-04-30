@@ -1,5 +1,7 @@
 import { checkIfUserHasFeatureController } from "@calcom/features/flags/operations/check-if-user-has-feature.controller";
 import { EMAIL_FROM_NAME } from "@calcom/lib/constants";
+import { getReplyToHeader } from "@calcom/lib/getReplyToHeader";
+import type { CalendarEvent, Person } from "@calcom/types/Calendar";
 
 import { renderEmail } from "../";
 import OrganizerScheduledEmail from "./organizer-scheduled-email";
@@ -20,12 +22,12 @@ export default class OrganizerRequestEmail extends OrganizerScheduledEmail {
     return {
       from: `${EMAIL_FROM_NAME} <${this.getMailerOptions().from}>`,
       to: toAddresses.join(","),
-      replyTo: [this.calEvent.organizer.email, ...this.calEvent.attendees.map(({ email }) => email)],
+      ...getReplyToHeader(
+        this.calEvent,
+        this.calEvent.attendees.map(({ email }) => email)
+      ),
       subject: `${this.t("awaiting_approval")}: ${this.calEvent.title}`,
-      html: await renderEmail(template, {
-        calEvent: this.calEvent,
-        attendee: this.calEvent.organizer,
-      }),
+      html: await this.getHtmlRequestEmail(template, this.calEvent, this.calEvent.organizer),
       text: this.getTextBody("event_awaiting_approval"),
     };
   }
@@ -40,5 +42,16 @@ ${process.env.NEXT_PUBLIC_WEBAPP_URL} + ${
         this.calEvent.recurringEvent?.count ? "/bookings/recurring" : "/bookings/upcoming"
       }`
     );
+  }
+
+  async getHtmlRequestEmail(
+    template: "OrganizerRequestEmailV2" | "OrganizerRequestEmail",
+    calEvent: CalendarEvent,
+    attendee: Person
+  ) {
+    return await renderEmail(template, {
+      calEvent,
+      attendee,
+    });
   }
 }

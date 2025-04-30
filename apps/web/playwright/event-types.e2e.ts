@@ -5,7 +5,6 @@ import { WEBAPP_URL } from "@calcom/lib/constants";
 import { randomString } from "@calcom/lib/random";
 
 import { test } from "./lib/fixtures";
-import { testBothFutureAndLegacyRoutes } from "./lib/future-legacy-routes";
 import {
   bookTimeSlot,
   createNewEventType,
@@ -18,8 +17,8 @@ import {
 
 test.describe.configure({ mode: "parallel" });
 
-testBothFutureAndLegacyRoutes.describe("Event Types A/B tests", () => {
-  test("should render the /future/event-types page", async ({ page, users }) => {
+test.describe("Event Types tests", () => {
+  test("should render the /event-types page", async ({ page, users }) => {
     const user = await users.create();
 
     await user.apiLogin();
@@ -32,7 +31,7 @@ testBothFutureAndLegacyRoutes.describe("Event Types A/B tests", () => {
   });
 });
 
-testBothFutureAndLegacyRoutes.describe("Event Types tests", () => {
+test.describe("Event Types tests", () => {
   test.describe("user", () => {
     test.beforeEach(async ({ page, users }) => {
       const user = await users.create();
@@ -61,10 +60,27 @@ testBothFutureAndLegacyRoutes.describe("Event Types tests", () => {
       await expect(page.locator(`text='${eventTitle}'`)).toBeVisible();
     });
 
+    test("new event type appears first in the list", async ({ page }) => {
+      const nonce = randomString(3);
+      const eventTitle = `hello ${nonce}`;
+      await createNewEventType(page, { eventTitle });
+      await page.goto("/event-types");
+      const firstEvent = page.locator("[data-testid=event-types] > li a").first();
+      const firstEventTitle = await firstEvent.getAttribute("title");
+      await expect(firstEventTitle).toBe(eventTitle);
+    });
+
     test("enabling recurring event comes with default options", async ({ page }) => {
       const nonce = randomString(3);
       const eventTitle = `my recurring event ${nonce}`;
       await createNewEventType(page, { eventTitle });
+
+      // fix the race condition
+      await page.waitForSelector('[data-testid="event-title"]');
+      await expect(page.getByTestId("vertical-tab-event_setup_tab_title")).toHaveAttribute(
+        "aria-current",
+        "page"
+      );
 
       await page.click("[data-testid=vertical-tab-recurring]");
       await expect(page.locator("[data-testid=recurring-event-collapsible]")).toBeHidden();
@@ -193,8 +209,9 @@ testBothFutureAndLegacyRoutes.describe("Event Types tests", () => {
         await saveEventType(page);
         await gotoBookingPage(page);
         await selectFirstAvailableTimeSlotNextMonth(page);
-
-        await page.locator(`[data-fob-field-name="location"] input`).fill("19199999999");
+        const locationInput = page.locator(`[data-fob-field-name="location"] input`);
+        await locationInput.clear();
+        await locationInput.fill("+19199999999");
         await bookTimeSlot(page);
 
         await expect(page.locator("[data-testid=success-page]")).toBeVisible();
@@ -208,7 +225,8 @@ testBothFutureAndLegacyRoutes.describe("Event Types tests", () => {
         await page.locator(`text="Organizer Phone Number"`).click();
         const locationInputName = "locations[0].hostPhoneNumber";
         await page.locator(`input[name="${locationInputName}"]`).waitFor();
-        await page.locator(`input[name="${locationInputName}"]`).fill("19199999999");
+        await page.locator(`input[name="${locationInputName}"]`).clear();
+        await page.locator(`input[name="${locationInputName}"]`).fill("+19199999999");
 
         await saveEventType(page);
         await gotoBookingPage(page);
@@ -368,6 +386,39 @@ testBothFutureAndLegacyRoutes.describe("Event Types tests", () => {
         await checkDisplayLocation(page);
         await unCheckDisplayLocation(page);
       });
+    });
+
+    test("Should not allow enabling both recurring event and offer seats at the same time", async ({
+      page,
+    }) => {
+      const nonce = randomString(3);
+      const eventTitle = `Conflict event ${nonce}`;
+      await createNewEventType(page, { eventTitle });
+      await page.goto("/event-types");
+      await page.click(`text=${eventTitle}`);
+
+      // Go to Advanced tab and enable offerSeats
+      await page.click("[data-testid=vertical-tab-event_advanced_tab_title]");
+      const offerSeatsToggle = page.locator("[data-testid=offer-seats-toggle]");
+      await offerSeatsToggle.click();
+
+      // Try enabling recurring - should be disabled
+      await page.click("[data-testid=vertical-tab-recurring]");
+      const recurringEventToggle = page.locator("[data-testid=recurring-event-check]");
+      await expect(recurringEventToggle).toBeDisabled();
+
+      // Go back and disable offerSeats
+      await page.click("[data-testid=vertical-tab-event_advanced_tab_title]");
+      await offerSeatsToggle.click(); // turn it off
+
+      // Enable recurring now
+      await page.click("[data-testid=vertical-tab-recurring]");
+      await recurringEventToggle.click();
+      await expect(page.locator("[data-testid=recurring-event-collapsible]")).toBeVisible();
+
+      // After enabling recurring, offerSeats should now be disabled
+      await page.click("[data-testid=vertical-tab-event_advanced_tab_title]");
+      await expect(offerSeatsToggle).toBeDisabled();
     });
   });
 });
