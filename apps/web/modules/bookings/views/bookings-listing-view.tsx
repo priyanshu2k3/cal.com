@@ -29,11 +29,12 @@ import type { VerticalTabItemProps } from "@calcom/ui/components/navigation";
 
 import useMeQuery from "@lib/hooks/useMeQuery";
 
-import BookingListItem from "@components/booking/BookingListItem";
 import SkeletonLoader from "@components/booking/SkeletonLoader";
 
 import { useFacetedUniqueValues } from "~/bookings/hooks/useFacetedUniqueValues";
 import type { validStatuses } from "~/bookings/lib/validStatuses";
+
+import { DateColumn, TimeColumn, EventColumn, TeamColumn } from "../components/columns";
 
 type BookingListingStatus = (typeof validStatuses)[number];
 type BookingOutput = RouterOutputs["viewer"]["bookings"]["get"]["bookings"][0];
@@ -214,39 +215,96 @@ function BookingsContent({ status }: BookingsProps) {
           },
         },
       }),
+
       columnHelper.display({
-        id: "customView",
+        id: "date",
+        header: t("date"),
+        cell: (props) => {
+          if (props.row.original.type === "data") {
+            return (
+              <DateColumn
+                startTime={props.row.original.booking.startTime}
+                userTimeZone={user?.timeZone}
+                isUpcoming={status === "upcoming"}
+              />
+            );
+          }
+          return null;
+        },
+      }),
+
+      columnHelper.display({
+        id: "time",
+        header: t("time"),
+        cell: (props) => {
+          if (props.row.original.type === "data") {
+            return (
+              <TimeColumn
+                startTime={props.row.original.booking.startTime}
+                endTime={props.row.original.booking.endTime}
+                userTimeZone={user?.timeZone}
+                userTimeFormat={user?.timeFormat}
+                attendees={props.row.original.booking.attendees}
+              />
+            );
+          }
+          return null;
+        },
+      }),
+
+      columnHelper.display({
+        id: "event",
+        header: t("event"),
+        cell: (props) => {
+          if (props.row.original.type === "data") {
+            const { booking } = props.row.original;
+            return (
+              <EventColumn
+                title={booking.title}
+                description={booking.description}
+                isCancelled={booking.status === "CANCELLED"}
+                showPendingPayment={!!(booking.payment.length && !booking.paid)}
+              />
+            );
+          }
+          return null;
+        },
+      }),
+
+      columnHelper.display({
+        id: "team",
+        header: t("team"),
+        cell: (props) => {
+          if (props.row.original.type === "data") {
+            return <TeamColumn teamName={props.row.original.booking.eventType.team?.name} />;
+          }
+          return null;
+        },
+      }),
+
+      columnHelper.display({
+        id: "actions",
+        header: t("actions"),
         cell: (props) => {
           if (props.row.original.type === "data") {
             const { booking, recurringInfo, isToday } = props.row.original;
             return (
-              <BookingListItem
-                key={booking.id}
-                isToday={isToday}
-                loggedInUser={{
-                  userId: user?.id,
-                  userTimeZone: user?.timeZone,
-                  userTimeFormat: user?.timeFormat,
-                  userEmail: user?.email,
-                }}
-                listingStatus={status}
-                recurringInfo={recurringInfo}
-                {...booking}
-              />
-            );
-          } else if (props.row.original.type === "today") {
-            return (
-              <p className="text-subtle bg-subtle w-full py-4 pl-6 text-xs font-semibold uppercase leading-4">
-                {t("today")}
-              </p>
-            );
-          } else if (props.row.original.type === "next") {
-            return (
-              <p className="text-subtle bg-subtle w-full py-4 pl-6 text-xs font-semibold uppercase leading-4">
-                {t("next")}
-              </p>
+              <></>
+              // <BookingListItem
+              //   {...booking}
+              //   listingStatus={status}
+              //   recurringInfo={recurringInfo}
+              //   isToday={isToday}
+              //   loggedInUser={{
+              //     userId: user?.id,
+              //     userTimeZone: user?.timeZone,
+              //     userTimeFormat: user?.timeFormat,
+              //     userEmail: user?.email,
+              //   }}
+              // />
             );
           }
+          return null;
         },
       }),
     ];
@@ -257,7 +315,7 @@ function BookingsContent({ status }: BookingsProps) {
   const flatData = useMemo<RowData[]>(() => {
     const shownBookings: Record<string, BookingOutput[]> = {};
     const filterBookings = (booking: BookingOutput) => {
-      if (status === "recurring" || status == "unconfirmed" || status === "cancelled") {
+      if (["recurring", "unconfirmed", "cancelled"].includes(status)) {
         if (!booking.recurringEventId) {
           return true;
         }
@@ -314,14 +372,16 @@ function BookingsContent({ status }: BookingsProps) {
       return flatData;
     }
     const merged: RowData[] = [];
-    if (bookingsToday.length > 0) {
-      merged.push({ type: "today" as const }, ...bookingsToday);
-    }
-    if (flatData.length > 0) {
-      merged.push({ type: "next" as const }, ...flatData);
-    }
+    // if (bookingsToday.length > 0) {
+    //   merged.push({ type: "today" as const }, ...bookingsToday);
+    // }
+    // if (flatData.length > 0) {
+    //   merged.push({ type: "next" as const }, ...flatData);
+    // }
     return merged;
   }, [bookingsToday, flatData, status]);
+
+  console.log(finalData);
 
   const getFacetedUniqueValues = useFacetedUniqueValues();
 
@@ -369,10 +429,8 @@ function BookingsContent({ status }: BookingsProps) {
                 table={table}
                 testId={`${status}-bookings`}
                 bodyTestId="bookings"
-                headerClassName="hidden"
                 isPending={query.isPending}
                 totalRowCount={query.data?.totalCount}
-                variant="compact"
                 paginationMode="standard"
                 ToolbarLeft={
                   <>
