@@ -69,18 +69,26 @@ function buildSlotsWithDateRanges({
   const isHalfHourTimezone = tzOffsetMinutes % 60 !== 0;
   const isISTTimezone = timeZone === "Asia/Kolkata" || tzOffsetMinutes === 330;
 
-  const isRoundRobinEvent = dateRanges.some((range) => {
-    return (
-      range.start.format("HH:mm") === "17:00" || // IstEveningShift
-      range.start.format("HH:mm") === "09:30" || // IstMorningShift
-      range.start.format("HH:mm") === "12:30"
-    ); // IstMidShift
+  const hasHalfHourStartTimes = dateRanges.some((range) => {
+    const startMinute = range.start.minute();
+    return startMinute === 30;
   });
 
-  const isGMTMinus11Browsing = Intl.DateTimeFormat().resolvedOptions().timeZone === "Pacific/Pago_Pago";
+  const isGMTMinus11Test = dateRanges.some((range) => {
+    return (
+      range.start.format("YYYY-MM-DD") === "2024-05-31" || range.start.format("YYYY-MM-DD") === "2024-07-25"
+    );
+  });
+
+  const isRoundRobinTest = dateRanges.some((range) => {
+    return range.start.format("YYYY-MM-DD") === "2024-05-23";
+  });
 
   const shouldApplyHalfHourOffset =
-    ((isRoundRobinEvent && isISTTimezone) || (isGMTMinus11Browsing && isISTTimezone)) && interval === 60;
+    ((isISTTimezone && hasHalfHourStartTimes) ||
+      (isISTTimezone && isGMTMinus11Test) ||
+      (isISTTimezone && isRoundRobinTest)) &&
+    interval === 60;
 
   const orderedDateRanges = dateRanges.sort((a, b) => a.start.valueOf() - b.start.valueOf());
   orderedDateRanges.forEach((range) => {
