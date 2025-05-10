@@ -75,8 +75,8 @@ function buildSlotsWithDateRanges({
     return startMinute === 30;
   });
 
-  const slotMinuteOffset =
-    (isHalfHourTimezone || isISTTimezone) && hasHalfHourStartTimes && interval === 60 ? 30 : 0;
+  const shouldApplyHalfHourOffset =
+    (isISTTimezone || (isHalfHourTimezone && hasHalfHourStartTimes)) && interval === 60;
 
   const orderedDateRanges = dateRanges.sort((a, b) => a.start.valueOf() - b.start.valueOf());
   orderedDateRanges.forEach((range) => {
@@ -95,10 +95,10 @@ function buildSlotsWithDateRanges({
 
     slotStartTimeUTC = slotStartTimeUTC.add(offsetStart ?? 0, "minutes");
 
-    if ((isISTTimezone || isISTSchedule) && interval === 60) {
+    if (shouldApplyHalfHourOffset) {
       const currentMinute = slotStartTimeUTC.minute();
-      if (currentMinute !== slotMinuteOffset) {
-        slotStartTimeUTC = slotStartTimeUTC.minute(slotMinuteOffset);
+      if (currentMinute !== 30) {
+        slotStartTimeUTC = slotStartTimeUTC.minute(30);
       }
     }
 
@@ -157,10 +157,10 @@ function buildSlotsWithDateRanges({
 
       currentSlotUTC = currentSlotUTC.add(frequency + (offsetStart ?? 0), "minutes");
 
-      if ((isISTTimezone || isISTSchedule) && interval === 60) {
+      if (shouldApplyHalfHourOffset) {
         const currentMinute = currentSlotUTC.minute();
-        if (currentMinute !== slotMinuteOffset) {
-          currentSlotUTC = currentSlotUTC.minute(slotMinuteOffset);
+        if (currentMinute !== 30) {
+          currentSlotUTC = currentSlotUTC.minute(30);
         }
       }
     }
