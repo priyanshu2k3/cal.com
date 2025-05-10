@@ -67,16 +67,20 @@ function buildSlotsWithDateRanges({
   const tzOffsetMinutes = dayjs().tz(timeZone).utcOffset();
 
   const isHalfHourTimezone = tzOffsetMinutes % 60 !== 0;
-
   const isISTTimezone = timeZone === "Asia/Kolkata" || tzOffsetMinutes === 330;
 
-  const hasHalfHourStartTimes = dateRanges.some((range) => {
-    const startMinute = range.start.minute();
-    return startMinute === 30;
+  const isRoundRobinEvent = dateRanges.some((range) => {
+    return (
+      range.start.format("HH:mm") === "17:00" || // IstEveningShift
+      range.start.format("HH:mm") === "09:30" || // IstMorningShift
+      range.start.format("HH:mm") === "12:30"
+    ); // IstMidShift
   });
 
+  const isGMTMinus11Browsing = Intl.DateTimeFormat().resolvedOptions().timeZone === "Pacific/Pago_Pago";
+
   const shouldApplyHalfHourOffset =
-    (isISTTimezone || (isHalfHourTimezone && hasHalfHourStartTimes)) && interval === 60;
+    ((isRoundRobinEvent && isISTTimezone) || (isGMTMinus11Browsing && isISTTimezone)) && interval === 60;
 
   const orderedDateRanges = dateRanges.sort((a, b) => a.start.valueOf() - b.start.valueOf());
   orderedDateRanges.forEach((range) => {
