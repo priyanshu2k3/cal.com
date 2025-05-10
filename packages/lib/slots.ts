@@ -70,12 +70,13 @@ function buildSlotsWithDateRanges({
 
   const isISTTimezone = timeZone === "Asia/Kolkata" || tzOffsetMinutes === 330;
 
-  const isISTSchedule = dateRanges.some((range) => {
+  const hasHalfHourStartTimes = dateRanges.some((range) => {
     const startMinute = range.start.minute();
     return startMinute === 30;
   });
 
-  const slotMinuteOffset = (isHalfHourTimezone || isISTTimezone || isISTSchedule) && interval === 60 ? 30 : 0;
+  const slotMinuteOffset =
+    (isHalfHourTimezone || isISTTimezone) && hasHalfHourStartTimes && interval === 60 ? 30 : 0;
 
   const orderedDateRanges = dateRanges.sort((a, b) => a.start.valueOf() - b.start.valueOf());
   orderedDateRanges.forEach((range) => {
