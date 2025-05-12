@@ -2904,6 +2904,8 @@
   "copy_redirect_url": "Copy Redirect URL",
   "total_bookings_per_period": "Total Bookings per period",
   "routed_to_per_period": "Routed to per period",
+  "time":"Time",
+  "event":"Event",
   "per_day": "Per day",
   "per_week": "Per week",
   "per_month": "Per month",

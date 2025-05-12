@@ -284,7 +284,7 @@ function BookingsContent({ status }: BookingsProps) {
 
       columnHelper.display({
         id: "actions",
-        header: t("actions"),
+        header: () => null,
         cell: (props) => {
           if (props.row.original.type === "data") {
             const { booking, recurringInfo, isToday } = props.row.original;
