@@ -115,11 +115,8 @@ type RowData =
 
 function BookingsTable({
   data,
-  columns,
-  title,
   tableContainerRef,
   query,
-  isEmpty,
   status,
   t,
   table,
@@ -128,10 +125,8 @@ function BookingsTable({
 }: {
   data: RowData[];
   columns: any[];
-  title?: string;
   tableContainerRef: React.RefObject<HTMLDivElement>;
   query: any;
-  isEmpty: boolean;
   status: BookingListingStatus;
   t: any;
   table: any;
@@ -496,7 +491,7 @@ function BookingsContent({ status }: BookingsProps) {
 
   // Create a shared toolbar component
   const SharedToolbar = () => (
-    <div className="flex flex-wrap justify-between gap-2">
+    <div className="mb-2 flex flex-wrap justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <DataTableFilters.FilterBar table={status === "upcoming" ? upcomingTable : defaultTable} />
       </div>
@@ -535,10 +530,8 @@ function BookingsContent({ status }: BookingsProps) {
                     <BookingsTable
                       data={bookingsToday}
                       columns={columns}
-                      title={t("today_bookings")}
                       tableContainerRef={todayTableContainerRef}
                       query={query}
-                      isEmpty={!bookingsToday.length}
                       status={status}
                       t={t}
                       table={todayTable}
@@ -549,10 +542,8 @@ function BookingsContent({ status }: BookingsProps) {
                   <BookingsTable
                     data={flatData}
                     columns={columns}
-                    title={t("upcoming_bookings")}
                     tableContainerRef={tableContainerRef}
                     query={query}
-                    isEmpty={!flatData.length}
                     status={status}
                     t={t}
                     table={upcomingTable}
@@ -567,7 +558,6 @@ function BookingsContent({ status }: BookingsProps) {
                   columns={columns}
                   tableContainerRef={tableContainerRef}
                   query={query}
-                  isEmpty={isEmpty}
                   status={status}
                   t={t}
                   table={defaultTable}
