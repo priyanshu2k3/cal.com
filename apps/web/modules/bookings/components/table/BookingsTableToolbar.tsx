@@ -10,7 +10,7 @@ interface BookingsTableToolbarProps {
 
 export function BookingsTableToolbar({ table }: BookingsTableToolbarProps) {
   return (
-    <>
+    <div className="flex flex-wrap justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <DataTableFilters.FilterBar table={table} />
       </div>
@@ -19,6 +19,6 @@ export function BookingsTableToolbar({ table }: BookingsTableToolbarProps) {
         <DataTableSegment.SaveButton />
         <DataTableSegment.Select />
       </div>
-    </>
+    </div>
   );
 }

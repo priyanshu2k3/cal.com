@@ -496,7 +496,7 @@ function BookingsContent({ status }: BookingsProps) {
 
   // Create a shared toolbar component
   const SharedToolbar = () => (
-    <>
+    <div className="flex flex-wrap justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <DataTableFilters.FilterBar table={status === "upcoming" ? upcomingTable : defaultTable} />
       </div>
@@ -505,7 +505,7 @@ function BookingsContent({ status }: BookingsProps) {
         <DataTableSegment.SaveButton />
         <DataTableSegment.Select />
       </div>
-    </>
+    </div>
   );
 
   return (
