@@ -135,7 +135,6 @@ function BookingsTable({
 }) {
   return (
     <>
-      {title && <h3 className="mb-4 font-medium text-gray-900">{title}</h3>}
       <DataTableWrapper
         className="mb-6"
         tableContainerRef={tableContainerRef}
