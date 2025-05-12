@@ -233,7 +233,7 @@ test.describe("Teams - NonOrg", () => {
     await expect(page.locator('[data-testid="you-cannot-see-team-members"]')).toBeVisible();
     await expect(page.locator('[data-testid="team-members-container"]')).toBeHidden();
   });
-  test("Email Embeds slots are loading for team event types", async ({ page, users }) => {
+  test("Email Embeds slots are loading for team event types @test", async ({ page, users }) => {
     const teamMatesObj = [
       { name: "teammate-1" },
       { name: "teammate-2" },

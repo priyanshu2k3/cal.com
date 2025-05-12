@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { shallow } from "zustand/shallow";
 
 import { useSchedule } from "@calcom/features/schedules/lib/use-schedule/useSchedule";
@@ -93,6 +94,7 @@ export const useScheduleForEvent = ({
     (state) => [state.username, state.eventSlug, state.month, state.selectedDuration],
     shallow
   );
+  const [hasV2Failed, setHasV2Failed] = useState(false);
 
   const searchParams = useCompatSearchParams();
   const rescheduleUid = searchParams?.get("rescheduleUid");
@@ -113,6 +115,7 @@ export const useScheduleForEvent = ({
     orgSlug,
     teamMemberEmail,
     useApiV2: useApiV2,
+    enabled: !hasV2Failed,
   });
 
   const scheduleNotUsingApiV2 = useSchedule({
@@ -132,11 +135,17 @@ export const useScheduleForEvent = ({
     teamMemberEmail,
     useApiV2: false,
     // only run this query if the one using Api v2 fails
-    // Network error does not trigger `isError` flag, so we are instead using `failureReason` here
-    enabled: isTeamEvent && !!scheduleUsingApiV2?.failureReason,
+    enabled: isTeamEvent && hasV2Failed,
   });
 
   const schedule = scheduleUsingApiV2?.isSuccess ? scheduleUsingApiV2 : scheduleNotUsingApiV2;
+
+  useEffect(() => {
+    // Network error does not trigger `isError` flag, so we are instead using `failureReason` here
+    if (scheduleUsingApiV2?.failureReason && !hasV2Failed) {
+      setHasV2Failed(true);
+    }
+  }, [scheduleUsingApiV2?.failureReason, hasV2Failed]);
 
   return {
     data: schedule?.data,
