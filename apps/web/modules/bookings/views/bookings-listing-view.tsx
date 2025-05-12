@@ -8,7 +8,7 @@ import {
   type VisibilityState,
   type SortingState,
 } from "@tanstack/react-table";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 
 import { WipeMyCalActionButton } from "@calcom/app-store/wipemycalother/components";
 import dayjs from "@calcom/dayjs";
@@ -195,178 +195,181 @@ function BookingsContent({ status }: BookingsProps) {
     },
   });
 
-  const columns = useMemo(() => {
-    const columnHelper = createColumnHelper<RowData>();
+  const columns = useCallback(
+    (isToday = false) => {
+      const columnHelper = createColumnHelper<RowData>();
 
-    return [
-      columnHelper.accessor((row) => row.type === "data" && row.booking.eventType.id, {
-        id: "eventTypeId",
-        header: t("event_type"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.MULTI_SELECT,
-          },
-        },
-      }),
-      columnHelper.accessor((row) => row.type === "data" && row.booking.eventType.team?.id, {
-        id: "teamId",
-        header: t("team"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.MULTI_SELECT,
-          },
-        },
-      }),
-      columnHelper.accessor((row) => row.type === "data" && row.booking.user?.id, {
-        id: "userId",
-        header: t("member"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.MULTI_SELECT,
-          },
-        },
-      }),
-      columnHelper.accessor((row) => row, {
-        id: "attendeeName",
-        header: t("attendee_name"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.TEXT,
-          },
-        },
-      }),
-      columnHelper.accessor((row) => row, {
-        id: "attendeeEmail",
-        header: t("attendee_email_variable"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.TEXT,
-          },
-        },
-      }),
-      columnHelper.accessor((row) => row, {
-        id: "dateRange",
-        header: t("date_range"),
-        enableColumnFilter: true,
-        enableSorting: false,
-        cell: () => null,
-        meta: {
-          filter: {
-            type: ColumnFilterType.DATE_RANGE,
-            dateRangeOptions: {
-              range: status === "past" ? "past" : "custom",
+      return [
+        columnHelper.accessor((row) => row.type === "data" && row.booking.eventType.id, {
+          id: "eventTypeId",
+          header: t("event_type"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.MULTI_SELECT,
             },
           },
-        },
-      }),
+        }),
+        columnHelper.accessor((row) => row.type === "data" && row.booking.eventType.team?.id, {
+          id: "teamId",
+          header: t("team"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.MULTI_SELECT,
+            },
+          },
+        }),
+        columnHelper.accessor((row) => row.type === "data" && row.booking.user?.id, {
+          id: "userId",
+          header: t("member"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.MULTI_SELECT,
+            },
+          },
+        }),
+        columnHelper.accessor((row) => row, {
+          id: "attendeeName",
+          header: t("attendee_name"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.TEXT,
+            },
+          },
+        }),
+        columnHelper.accessor((row) => row, {
+          id: "attendeeEmail",
+          header: t("attendee_email_variable"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.TEXT,
+            },
+          },
+        }),
+        columnHelper.accessor((row) => row, {
+          id: "dateRange",
+          header: t("date_range"),
+          enableColumnFilter: true,
+          enableSorting: false,
+          cell: () => null,
+          meta: {
+            filter: {
+              type: ColumnFilterType.DATE_RANGE,
+              dateRangeOptions: {
+                range: status === "past" ? "past" : "custom",
+              },
+            },
+          },
+        }),
 
-      columnHelper.display({
-        id: "date",
-        header: t("date"),
-        cell: (props) => {
-          if (props.row.original.type === "data") {
-            return (
-              <DateColumn
-                startTime={props.row.original.booking.startTime}
-                userTimeZone={user?.timeZone}
-                isUpcoming={status === "upcoming"}
-              />
-            );
-          }
-          return null;
-        },
-      }),
+        columnHelper.display({
+          id: "date",
+          header: isToday ? t("today") : t("date"),
+          cell: (props) => {
+            if (props.row.original.type === "data") {
+              return (
+                <DateColumn
+                  startTime={props.row.original.booking.startTime}
+                  userTimeZone={user?.timeZone}
+                  isUpcoming={status === "upcoming"}
+                />
+              );
+            }
+            return null;
+          },
+        }),
 
-      columnHelper.display({
-        id: "time",
-        header: t("time"),
-        cell: (props) => {
-          if (props.row.original.type === "data") {
-            return (
-              <TimeColumn
-                startTime={props.row.original.booking.startTime}
-                endTime={props.row.original.booking.endTime}
-                userTimeZone={user?.timeZone}
-                userTimeFormat={user?.timeFormat}
-                attendees={props.row.original.booking.attendees}
-              />
-            );
-          }
-          return null;
-        },
-      }),
+        columnHelper.display({
+          id: "time",
+          header: t("time"),
+          cell: (props) => {
+            if (props.row.original.type === "data") {
+              return (
+                <TimeColumn
+                  startTime={props.row.original.booking.startTime}
+                  endTime={props.row.original.booking.endTime}
+                  userTimeZone={user?.timeZone}
+                  userTimeFormat={user?.timeFormat}
+                  attendees={props.row.original.booking.attendees}
+                />
+              );
+            }
+            return null;
+          },
+        }),
 
-      columnHelper.display({
-        id: "event",
-        header: t("event"),
-        cell: (props) => {
-          if (props.row.original.type === "data") {
-            const { booking } = props.row.original;
-            return (
-              <EventColumn
-                title={booking.title}
-                description={booking.description}
-                isCancelled={booking.status === "CANCELLED"}
-                showPendingPayment={!!(booking.payment.length && !booking.paid)}
-              />
-            );
-          }
-          return null;
-        },
-      }),
+        columnHelper.display({
+          id: "event",
+          header: t("event"),
+          cell: (props) => {
+            if (props.row.original.type === "data") {
+              const { booking } = props.row.original;
+              return (
+                <EventColumn
+                  title={booking.title}
+                  description={booking.description}
+                  isCancelled={booking.status === "CANCELLED"}
+                  showPendingPayment={!!(booking.payment.length && !booking.paid)}
+                />
+              );
+            }
+            return null;
+          },
+        }),
 
-      columnHelper.display({
-        id: "team",
-        header: t("team"),
-        cell: (props) => {
-          if (props.row.original.type === "data") {
-            return <TeamColumn teamName={props.row.original.booking.eventType.team?.name} />;
-          }
-          return null;
-        },
-      }),
+        columnHelper.display({
+          id: "team",
+          header: t("team"),
+          cell: (props) => {
+            if (props.row.original.type === "data") {
+              return <TeamColumn teamName={props.row.original.booking.eventType.team?.name} />;
+            }
+            return null;
+          },
+        }),
 
-      columnHelper.display({
-        id: "actions",
-        header: () => null,
-        cell: (props) => {
-          if (props.row.original.type === "data") {
-            const { booking, recurringInfo, isToday } = props.row.original;
-            return (
-              <BookingListItem
-                {...booking}
-                listingStatus={status}
-                recurringInfo={recurringInfo}
-                isToday={isToday}
-                loggedInUser={{
-                  userId: user?.id,
-                  userTimeZone: user?.timeZone,
-                  userTimeFormat: user?.timeFormat,
-                  userEmail: user?.email,
-                }}
-              />
-            );
-          }
-          return null;
-        },
-      }),
-    ];
-  }, [user, status, t]);
+        columnHelper.display({
+          id: "actions",
+          header: () => null,
+          cell: (props) => {
+            if (props.row.original.type === "data") {
+              const { booking, recurringInfo, isToday } = props.row.original;
+              return (
+                <BookingListItem
+                  {...booking}
+                  listingStatus={status}
+                  recurringInfo={recurringInfo}
+                  isToday={isToday}
+                  loggedInUser={{
+                    userId: user?.id,
+                    userTimeZone: user?.timeZone,
+                    userTimeFormat: user?.timeFormat,
+                    userEmail: user?.email,
+                  }}
+                />
+              );
+            }
+            return null;
+          },
+        }),
+      ];
+    },
+    [user, status, t]
+  );
 
   const isEmpty = useMemo(() => !query.data?.bookings.length, [query.data]);
 
@@ -457,7 +460,7 @@ function BookingsContent({ status }: BookingsProps) {
   const [sharedSorting, setSharedSorting] = useState<SortingState>([]);
 
   const commonTableOptions = {
-    columns,
+    columns: columns(),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedUniqueValues,
@@ -475,6 +478,7 @@ function BookingsContent({ status }: BookingsProps) {
 
   const todayTable = useReactTable<RowData>({
     ...commonTableOptions,
+    columns: columns(true),
     data: bookingsToday,
   });
 
@@ -528,7 +532,7 @@ function BookingsContent({ status }: BookingsProps) {
                   {!!bookingsToday.length && (
                     <BookingsTable
                       data={bookingsToday}
-                      columns={columns}
+                      columns={columns()}
                       tableContainerRef={todayTableContainerRef}
                       query={query}
                       status={status}
@@ -540,7 +544,7 @@ function BookingsContent({ status }: BookingsProps) {
                   )}
                   <BookingsTable
                     data={flatData}
-                    columns={columns}
+                    columns={columns()}
                     tableContainerRef={tableContainerRef}
                     query={query}
                     status={status}
@@ -554,7 +558,7 @@ function BookingsContent({ status }: BookingsProps) {
               {status !== "upcoming" && (
                 <BookingsTable
                   data={finalData}
-                  columns={columns}
+                  columns={columns()}
                   tableContainerRef={tableContainerRef}
                   query={query}
                   status={status}

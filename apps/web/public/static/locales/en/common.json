@@ -2906,6 +2906,7 @@
   "routed_to_per_period": "Routed to per period",
   "time":"Time",
   "event":"Event",
+  "today":"Today",
   "per_day": "Per day",
   "per_week": "Per week",
   "per_month": "Per month",
