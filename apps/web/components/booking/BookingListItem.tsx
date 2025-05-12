@@ -798,7 +798,6 @@ function BookingListItem(booking: BookingItemProps) {
                 </DropdownMenuContent>
               </Dropdown>
             )}
-            {isRejected && <div className="text-subtle text-sm">{t("rejected")}</div>}
             {isCancelled && booking.rescheduled && (
               <div className="hidden h-full items-center md:flex">
                 <RequestSentMessage />
@@ -806,6 +805,7 @@ function BookingListItem(booking: BookingItemProps) {
             )}
           </div>
         </div>
+        {/* TODO: Not sure where this info lives - its not in designs. Will come back to it */}
         {/* <BookingItemBadges
           booking={booking}
           isPending={isPending}
@@ -813,6 +813,7 @@ function BookingListItem(booking: BookingItemProps) {
           userTimeFormat={userTimeFormat}
           userTimeZone={userTimeZone}
           isRescheduled={isRescheduled}
+          isRejected={isRejected}
         /> */}
       </div>
 
@@ -834,6 +835,7 @@ const BookingItemBadges = ({
   userTimeFormat,
   userTimeZone,
   isRescheduled,
+  isRejected,
 }: {
   booking: BookingItemProps;
   isPending: boolean;
@@ -841,11 +843,17 @@ const BookingItemBadges = ({
   userTimeFormat: number | null | undefined;
   userTimeZone: string | undefined;
   isRescheduled: boolean;
+  isRejected: boolean;
 }) => {
   const { t } = useLocale();
 
   return (
     <div className="hidden h-9 flex-row items-center pb-4 pl-6 sm:flex">
+      {isRejected && (
+        <Badge className="ltr:mr-2 rtl:ml-2" variant="red">
+          {t("rejected")}
+        </Badge>
+      )}
       {isPending && (
         <Badge className="ltr:mr-2 rtl:ml-2" variant="orange">
           {t("unconfirmed")}
@@ -857,11 +865,6 @@ const BookingItemBadges = ({
             {t("rescheduled")}
           </Badge>
         </Tooltip>
-      )}
-      {booking.eventType?.team && (
-        <Badge className="ltr:mr-2 rtl:ml-2" variant="gray">
-          {booking.eventType.team.name}
-        </Badge>
       )}
       {booking?.assignmentReason.length > 0 && (
         <AssignmentReasonTooltip assignmentReason={booking.assignmentReason[0]} />
