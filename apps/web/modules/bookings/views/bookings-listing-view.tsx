@@ -29,6 +29,7 @@ import type { VerticalTabItemProps } from "@calcom/ui/components/navigation";
 
 import useMeQuery from "@lib/hooks/useMeQuery";
 
+import BookingListItem from "@components/booking/BookingListItem";
 import SkeletonLoader from "@components/booking/SkeletonLoader";
 
 import { useFacetedUniqueValues } from "~/bookings/hooks/useFacetedUniqueValues";
@@ -289,19 +290,18 @@ function BookingsContent({ status }: BookingsProps) {
           if (props.row.original.type === "data") {
             const { booking, recurringInfo, isToday } = props.row.original;
             return (
-              <></>
-              // <BookingListItem
-              //   {...booking}
-              //   listingStatus={status}
-              //   recurringInfo={recurringInfo}
-              //   isToday={isToday}
-              //   loggedInUser={{
-              //     userId: user?.id,
-              //     userTimeZone: user?.timeZone,
-              //     userTimeFormat: user?.timeFormat,
-              //     userEmail: user?.email,
-              //   }}
-              // />
+              <BookingListItem
+                {...booking}
+                listingStatus={status}
+                recurringInfo={recurringInfo}
+                isToday={isToday}
+                loggedInUser={{
+                  userId: user?.id,
+                  userTimeZone: user?.timeZone,
+                  userTimeFormat: user?.timeFormat,
+                  userEmail: user?.email,
+                }}
+              />
             );
           }
           return null;
@@ -372,12 +372,12 @@ function BookingsContent({ status }: BookingsProps) {
       return flatData;
     }
     const merged: RowData[] = [];
-    // if (bookingsToday.length > 0) {
-    //   merged.push({ type: "today" as const }, ...bookingsToday);
-    // }
-    // if (flatData.length > 0) {
-    //   merged.push({ type: "next" as const }, ...flatData);
-    // }
+    if (bookingsToday.length > 0) {
+      merged.push({ type: "today" as const }, ...bookingsToday);
+    }
+    if (flatData.length > 0) {
+      merged.push({ type: "next" as const }, ...flatData);
+    }
     return merged;
   }, [bookingsToday, flatData, status]);
 
