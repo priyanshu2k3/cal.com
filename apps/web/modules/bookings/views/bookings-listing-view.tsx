@@ -373,10 +373,10 @@ function BookingsContent({ status }: BookingsProps) {
     }
     const merged: RowData[] = [];
     if (bookingsToday.length > 0) {
-      merged.push({ type: "today" as const }, ...bookingsToday);
+      merged.push(...bookingsToday);
     }
     if (flatData.length > 0) {
-      merged.push({ type: "next" as const }, ...flatData);
+      merged.push(...flatData);
     }
     return merged;
   }, [bookingsToday, flatData, status]);
