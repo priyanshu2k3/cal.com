@@ -1,7 +1,14 @@
 "use client";
 
-import { useReactTable, getCoreRowModel, getSortedRowModel, createColumnHelper } from "@tanstack/react-table";
-import { useMemo, useRef } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  createColumnHelper,
+  type VisibilityState,
+  type SortingState,
+} from "@tanstack/react-table";
+import { useMemo, useRef, useState } from "react";
 
 import { WipeMyCalActionButton } from "@calcom/app-store/wipemycalother/components";
 import dayjs from "@calcom/dayjs";
@@ -106,10 +113,67 @@ type RowData =
       type: "today" | "next";
     };
 
+function BookingsTable({
+  data,
+  columns,
+  title,
+  tableContainerRef,
+  query,
+  isEmpty,
+  status,
+  t,
+  table,
+  hideToolbar = false,
+  toolbarComponent: ToolbarComponent,
+}: {
+  data: RowData[];
+  columns: any[];
+  title?: string;
+  tableContainerRef: React.RefObject<HTMLDivElement>;
+  query: any;
+  isEmpty: boolean;
+  status: BookingListingStatus;
+  t: any;
+  table: any;
+  hideToolbar?: boolean;
+  toolbarComponent?: React.ComponentType;
+}) {
+  return (
+    <>
+      {title && <h3 className="mb-4 font-medium text-gray-900">{title}</h3>}
+      <DataTableWrapper
+        className="mb-6"
+        tableContainerRef={tableContainerRef}
+        table={table}
+        testId={`${status}-bookings`}
+        bodyTestId="bookings"
+        isPending={query.isPending}
+        totalRowCount={data.length}
+        paginationMode="standard"
+        ToolbarLeft={!hideToolbar && ToolbarComponent && <ToolbarComponent />}
+        LoaderView={<SkeletonLoader />}
+        EmptyView={
+          <div className="flex items-center justify-center pt-2 xl:pt-0">
+            <EmptyScreen
+              Icon="calendar"
+              headline={t("no_status_bookings_yet", { status: t(status).toLowerCase() })}
+              description={t("no_status_bookings_yet_description", {
+                status: t(status).toLowerCase(),
+                description: t(descriptionByStatus[status]),
+              })}
+            />
+          </div>
+        }
+      />
+    </>
+  );
+}
+
 function BookingsContent({ status }: BookingsProps) {
   const { t } = useLocale();
   const user = useMeQuery().data;
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const todayTableContainerRef = useRef<HTMLDivElement>(null);
 
   const eventTypeIds = useFilterValue("eventTypeId", ZMultiSelectFilterValue)?.data as number[] | undefined;
   const teamIds = useFilterValue("teamId", ZMultiSelectFilterValue)?.data as number[] | undefined;
@@ -385,23 +449,64 @@ function BookingsContent({ status }: BookingsProps) {
 
   const getFacetedUniqueValues = useFacetedUniqueValues();
 
-  const table = useReactTable<RowData>({
-    data: finalData,
+  // Create a shared state for column visibility
+  const [sharedColumnVisibility, setSharedColumnVisibility] = useState<VisibilityState>({
+    eventTypeId: false,
+    teamId: false,
+    userId: false,
+    attendeeName: false,
+    attendeeEmail: false,
+    dateRange: false,
+  });
+
+  // Create a shared state for sorting
+  const [sharedSorting, setSharedSorting] = useState<SortingState>([]);
+
+  const commonTableOptions = {
     columns,
-    initialState: {
-      columnVisibility: {
-        eventTypeId: false,
-        teamId: false,
-        userId: false,
-        attendeeName: false,
-        attendeeEmail: false,
-        dateRange: false,
-      },
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedUniqueValues,
+    enableSorting: true,
+    initialState: {
+      columnVisibility: sharedColumnVisibility,
+    },
+    onColumnVisibilityChange: setSharedColumnVisibility,
+    onSortingChange: setSharedSorting,
+    state: {
+      sorting: sharedSorting,
+      columnVisibility: sharedColumnVisibility,
+    },
+  };
+
+  const todayTable = useReactTable<RowData>({
+    ...commonTableOptions,
+    data: bookingsToday,
   });
+
+  const upcomingTable = useReactTable<RowData>({
+    ...commonTableOptions,
+    data: flatData,
+  });
+
+  const defaultTable = useReactTable<RowData>({
+    ...commonTableOptions,
+    data: finalData,
+  });
+
+  // Create a shared toolbar component
+  const SharedToolbar = () => (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <DataTableFilters.FilterBar table={status === "upcoming" ? upcomingTable : defaultTable} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <DataTableFilters.ClearFiltersButton />
+        <DataTableSegment.SaveButton />
+        <DataTableSegment.Select />
+      </div>
+    </>
+  );
 
   return (
     <div className="flex flex-col">
@@ -420,44 +525,55 @@ function BookingsContent({ status }: BookingsProps) {
           )}
           {query.status !== "error" && (
             <>
-              {!!bookingsToday.length && status === "upcoming" && (
-                <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
-              )}
-              <DataTableWrapper
-                className="mb-6"
-                tableContainerRef={tableContainerRef}
-                table={table}
-                testId={`${status}-bookings`}
-                bodyTestId="bookings"
-                isPending={query.isPending}
-                totalRowCount={query.data?.totalCount}
-                paginationMode="standard"
-                ToolbarLeft={
-                  <>
-                    <DataTableFilters.FilterBar table={table} />
-                  </>
-                }
-                ToolbarRight={
-                  <>
-                    <DataTableFilters.ClearFiltersButton />
-                    <DataTableSegment.SaveButton />
-                    <DataTableSegment.Select />
-                  </>
-                }
-                LoaderView={<SkeletonLoader />}
-                EmptyView={
-                  <div className="flex items-center justify-center pt-2 xl:pt-0">
-                    <EmptyScreen
-                      Icon="calendar"
-                      headline={t("no_status_bookings_yet", { status: t(status).toLowerCase() })}
-                      description={t("no_status_bookings_yet_description", {
-                        status: t(status).toLowerCase(),
-                        description: t(descriptionByStatus[status]),
-                      })}
+              {status === "upcoming" && (
+                <>
+                  {!!bookingsToday.length && (
+                    <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
+                  )}
+                  <SharedToolbar />
+                  {!!bookingsToday.length && (
+                    <BookingsTable
+                      data={bookingsToday}
+                      columns={columns}
+                      title={t("today_bookings")}
+                      tableContainerRef={todayTableContainerRef}
+                      query={query}
+                      isEmpty={!bookingsToday.length}
+                      status={status}
+                      t={t}
+                      table={todayTable}
+                      hideToolbar={true}
+                      toolbarComponent={SharedToolbar}
                     />
-                  </div>
-                }
-              />
+                  )}
+                  <BookingsTable
+                    data={flatData}
+                    columns={columns}
+                    title={t("upcoming_bookings")}
+                    tableContainerRef={tableContainerRef}
+                    query={query}
+                    isEmpty={!flatData.length}
+                    status={status}
+                    t={t}
+                    table={upcomingTable}
+                    hideToolbar={true}
+                    toolbarComponent={SharedToolbar}
+                  />
+                </>
+              )}
+              {status !== "upcoming" && (
+                <BookingsTable
+                  data={finalData}
+                  columns={columns}
+                  tableContainerRef={tableContainerRef}
+                  query={query}
+                  isEmpty={isEmpty}
+                  status={status}
+                  t={t}
+                  table={defaultTable}
+                  toolbarComponent={SharedToolbar}
+                />
+              )}
             </>
           )}
         </div>
