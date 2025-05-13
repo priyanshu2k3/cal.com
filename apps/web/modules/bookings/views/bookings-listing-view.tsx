@@ -145,6 +145,7 @@ function BookingsTable({
         paginationMode="standard"
         ToolbarLeft={<ToolbarComponent />}
         LoaderView={<SkeletonLoader />}
+        rowClassName={(row) => ((row.original as RowData).type === "header" ? "bg-muted" : "h-[52px]")}
         EmptyView={
           <div className="flex items-center justify-center pt-2 xl:pt-0">
             <EmptyScreen

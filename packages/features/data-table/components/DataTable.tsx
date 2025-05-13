@@ -37,7 +37,7 @@ export type DataTablePropsFromWrapper<TData> = {
   className?: string;
   containerClassName?: string;
   headerClassName?: string;
-  rowClassName?: string;
+  rowClassName?: string | ((row: Row<TData>) => string);
   paginationMode?: "infinite" | "standard";
   hasWrapperContext?: boolean;
 };
@@ -150,7 +150,9 @@ export function DataTable<TData>({
           }}>
           <TableHeader className={classNames("sticky top-0 z-10", headerClassName)}>
             {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => (
-              <TableRow key={headerGroup.id} className="hover:bg-subtle flex w-full border-none">
+              <TableRow
+                key={headerGroup.id}
+                className="hover:bg-subtle hover:bg-muted flex w-full border-none">
                 {headerGroup.headers.map((header: Header<TData, unknown>) => {
                   const { column } = header;
                   return (
@@ -239,7 +241,7 @@ type DataTableBodyProps<TData> = {
   isPending?: boolean;
   onRowMouseclick?: (row: Row<TData>) => void;
   paginationMode?: "infinite" | "standard";
-  rowClassName?: string;
+  rowClassName?: string | ((row: Row<TData>) => string);
 };
 
 type RowToRender<TData> = {
@@ -305,7 +307,11 @@ function DataTableBody<TData>({
               width: "100%",
             }),
           }}
-          className={classNames(onRowMouseclick && "hover:cursor-pointer", "group", rowClassName)}>
+          className={classNames(
+            onRowMouseclick && "hover:cursor-pointer",
+            "bg-default group px-1",
+            typeof rowClassName === "function" ? rowClassName(row) : rowClassName
+          )}>
           {row.getVisibleCells().map((cell) => {
             const column = cell.column;
             return (
@@ -317,7 +323,7 @@ function DataTableBody<TData>({
                   width: `var(--col-${kebabCase(cell.column.id)}-size)`,
                 }}
                 className={classNames(
-                  "bg-default group-hover:!bg-muted group-data-[state=selected]:bg-subtle flex shrink-0 items-center overflow-hidden",
+                  "group-hover:!bg-muted group-data-[state=selected]:bg-subtle flex shrink-0 items-center overflow-hidden",
                   variant === "compact" && "p-0",
                   column.getIsPinned() &&
                     "bg-default group-hover:!bg-muted group-data-[state=selected]:bg-subtle sm:sticky"
@@ -357,7 +363,7 @@ const TableHeadLabel = ({ header }: { header: Header<any, any> }) => {
         <button
           type="button"
           className={classNames(
-            "group mr-1 flex w-full items-center gap-2 rounded-md px-2 py-1",
+            "group mr-1 flex w-full items-center gap-2 rounded-md p-1",
             open && "bg-muted"
           )}>
           <div
