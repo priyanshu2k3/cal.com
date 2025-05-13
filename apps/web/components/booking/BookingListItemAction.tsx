@@ -40,6 +40,7 @@ import {
 import { TextAreaField } from "@calcom/ui/components/form";
 import { Icon } from "@calcom/ui/components/icon";
 import type { ActionType } from "@calcom/ui/components/table";
+import { TableActions } from "@calcom/ui/components/table";
 import { showToast } from "@calcom/ui/components/toast";
 import { Tooltip } from "@calcom/ui/components/tooltip";
 
@@ -101,7 +102,7 @@ const isBookingReroutable = (booking: ParsedBooking): booking is ReroutableBooki
   return !!booking.routedFromRoutingFormReponse && !!booking.eventType?.team;
 };
 
-function BookingListItemAction(booking: BookingItemProps) {
+function BookingListItem(booking: BookingItemProps) {
   const parsedBooking = buildParsedBooking(booking);
 
   const { userTimeZone, userTimeFormat, userEmail } = booking.loggedInUser;
@@ -475,21 +476,6 @@ function BookingListItemAction(booking: BookingItemProps) {
 
   const showPendingPayment = paymentAppData.enabled && booking.payment.length && !booking.paid;
 
-  const hasPaymentActions =
-    booking.status === "ACCEPTED" && booking.paid && booking.payment[0]?.paymentOption === "HOLD";
-
-  const showActionDropdown =
-    // Upcoming bookings that are pending or confirmed
-    (isUpcoming && !isCancelled && (isPending || isConfirmed)) ||
-    // Past bookings with no-show options or cancellation options
-    (isBookingInPast &&
-      (isBookingInPast || isOngoing || (!isDisabledCancelling && (isPending || isConfirmed)))) ||
-    // Bookings with recording actions
-    showViewRecordingsButton ||
-    showCheckRecordingButton ||
-    // Bookings with payment actions
-    hasPaymentActions;
-
   return (
     <>
       <RescheduleDialog
@@ -578,234 +564,32 @@ function BookingListItemAction(booking: BookingItemProps) {
         className="hover:bg-muted group w-full">
         <div className="flex flex-col sm:flex-row">
           <div className="flex w-full flex-col flex-wrap items-end justify-end space-x-2 space-y-2 py-4 pl-4 text-right text-sm font-medium ltr:pr-4 rtl:pl-4 sm:flex-row sm:flex-nowrap sm:items-start sm:space-y-0 sm:pl-0">
-            {showActionDropdown && (
-              <Dropdown>
-                <DropdownMenuTrigger asChild>
-                  <Button StartIcon="ellipsis" variant="icon" color="secondary" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {isUpcoming && !isCancelled && (
-                    <>
-                      {isPending && (
-                        <>
-                          {((isPending && !paymentAppData.enabled) ||
-                            (paymentAppData.enabled && !!paymentAppData.price && booking.paid)) && (
-                            <DropdownMenuItem>
-                              <DropdownItem
-                                type="button"
-                                StartIcon="check"
-                                onClick={() => bookingConfirm(true)}
-                                disabled={mutation.isPending}>
-                                {(isTabRecurring || isTabUnconfirmed) && isRecurring
-                                  ? t("confirm_all")
-                                  : t("confirm")}
-                              </DropdownItem>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <DropdownItem
-                              type="button"
-                              StartIcon="ban"
-                              color="destructive"
-                              onClick={() => setRejectionDialogIsOpen(true)}
-                              disabled={mutation.isPending}>
-                              {(isTabRecurring || isTabUnconfirmed) && isRecurring
-                                ? t("reject_all")
-                                : t("reject")}
-                            </DropdownItem>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      {isConfirmed && (
-                        <>
-                          {!isTabRecurring && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel>{t("edit")}</DropdownMenuLabel>
-                              {!isDisabledRescheduling &&
-                                (!isBookingInPast || booking.eventType.allowReschedulingPastBookings) && (
-                                  <>
-                                    <DropdownMenuItem>
-                                      <DropdownItem
-                                        type="button"
-                                        StartIcon="clock"
-                                        href={`/reschedule/${booking.uid}${
-                                          booking.seatsReferences.length
-                                            ? `?seatReferenceUid=${getSeatReferenceUid()}`
-                                            : ""
-                                        }`}>
-                                        {t("reschedule_booking")}
-                                      </DropdownItem>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                      <DropdownItem
-                                        type="button"
-                                        StartIcon="send"
-                                        onClick={() => setIsOpenRescheduleDialog(true)}>
-                                        {t("send_reschedule_request")}
-                                      </DropdownItem>
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              {isBookingFromRoutingForm && (
-                                <DropdownMenuItem>
-                                  <DropdownItem
-                                    type="button"
-                                    StartIcon="waypoints"
-                                    onClick={() => setRerouteDialogIsOpen(true)}>
-                                    {t("reroute")}
-                                  </DropdownItem>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem>
-                                <DropdownItem
-                                  type="button"
-                                  StartIcon="map-pin"
-                                  onClick={() => setIsOpenLocationDialog(true)}>
-                                  {t("edit_location")}
-                                </DropdownItem>
-                              </DropdownMenuItem>
-                              {!booking.eventType?.disableGuests && (
-                                <DropdownMenuItem>
-                                  <DropdownItem
-                                    type="button"
-                                    StartIcon="user-plus"
-                                    onClick={() => setIsOpenAddGuestsDialog(true)}>
-                                    {t("additional_guests")}
-                                  </DropdownItem>
-                                </DropdownMenuItem>
-                              )}
-                              {booking.eventType.schedulingType === SchedulingType.ROUND_ROBIN && (
-                                <DropdownMenuItem>
-                                  <DropdownItem
-                                    type="button"
-                                    StartIcon="users"
-                                    onClick={() => setIsOpenReassignDialog(true)}>
-                                    {t("reassign")}
-                                  </DropdownItem>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              {!isDisabledCancelling && (
-                                <DropdownMenuItem>
-                                  <DropdownItem
-                                    type="button"
-                                    StartIcon="x"
-                                    color="destructive"
-                                    href={`/booking/${booking.uid}?cancel=true${
-                                      isTabRecurring && isRecurring ? "&allRemainingBookings=true" : ""
-                                    }${
-                                      booking.seatsReferences.length
-                                        ? `&seatReferenceUid=${getSeatReferenceUid()}`
-                                        : ""
-                                    }`}>
-                                    {isTabRecurring && isRecurring
-                                      ? t("cancel_all_remaining")
-                                      : t("cancel_event")}
-                                  </DropdownItem>
-                                </DropdownMenuItem>
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </>
-                  )}
-                  {/* Recording actions */}
-                  {(showViewRecordingsButton || showCheckRecordingButton) && (
-                    <>
-                      <DropdownMenuItem>
-                        <DropdownItem
-                          type="button"
-                          StartIcon="video"
-                          color={showCheckRecordingButton ? "secondary" : "primary"}
-                          onClick={() => setViewRecordingsDialogIsOpen(true)}
-                          disabled={mutation.isPending}>
-                          {showCheckRecordingButton ? t("check_for_recordings") : t("view_recordings")}
-                        </DropdownItem>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {/* Past bookings actions */}
-                  {isBookingInPast && (
-                    <>
-                      {(isBookingInPast || isOngoing) && (
-                        <DropdownMenuItem>
-                          <DropdownItem
-                            type="button"
-                            StartIcon={
-                              attendeeList.length === 1 && attendeeList[0].noShow ? "eye" : "eye-off"
-                            }
-                            onClick={() => {
-                              if (attendeeList.length === 1) {
-                                const attendee = attendeeList[0];
-                                noShowMutation.mutate({
-                                  bookingUid: booking.uid,
-                                  attendees: [{ email: attendee.email, noShow: !attendee.noShow }],
-                                });
-                                return;
-                              }
-                              setIsNoShowDialogOpen(true);
-                            }}>
-                            {attendeeList.length === 1 && attendeeList[0].noShow
-                              ? t("unmark_as_no_show")
-                              : t("mark_as_no_show")}
-                          </DropdownItem>
-                        </DropdownMenuItem>
-                      )}
-                      {!isDisabledCancelling && (isPending || isConfirmed) && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <DropdownItem
-                              type="button"
-                              StartIcon="x"
-                              color="destructive"
-                              href={`/booking/${booking.uid}?cancel=true${
-                                isTabRecurring && isRecurring ? "&allRemainingBookings=true" : ""
-                              }${
-                                booking.seatsReferences.length
-                                  ? `&seatReferenceUid=${getSeatReferenceUid()}`
-                                  : ""
-                              }`}>
-                              {isTabRecurring && isRecurring ? t("cancel_all_remaining") : t("cancel_event")}
-                            </DropdownItem>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {/* Payment actions */}
-                  {booking.status === "ACCEPTED" &&
-                    booking.paid &&
-                    booking.payment[0]?.paymentOption === "HOLD" && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <DropdownItem
-                            type="button"
-                            StartIcon="credit-card"
-                            disabled={cardCharged}
-                            onClick={() => setChargeCardDialogIsOpen(true)}>
-                            {cardCharged ? t("no_show_fee_charged") : t("collect_no_show_fee")}
-                          </DropdownItem>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                </DropdownMenuContent>
-              </Dropdown>
+            {isUpcoming && !isCancelled ? (
+              <>
+                {isPending && <TableActions actions={pendingActions} />}
+                {isConfirmed && <TableActions actions={bookedActions} />}
+                {isRejected && <div className="text-subtle text-sm">{t("rejected")}</div>}
+              </>
+            ) : null}
+            {isBookingInPast && isPending && !isConfirmed ? <TableActions actions={bookedActions} /> : null}
+            {isBookingInPast && isConfirmed ? <TableActions actions={bookedActions} /> : null}
+            {(showViewRecordingsButton || showCheckRecordingButton) && (
+              <TableActions actions={showRecordingActions} />
             )}
             {isCancelled && booking.rescheduled && (
               <div className="hidden h-full items-center md:flex">
                 <RequestSentMessage />
               </div>
             )}
+            {booking.status === "ACCEPTED" &&
+              booking.paid &&
+              booking.payment[0]?.paymentOption === "HOLD" && (
+                <div className="ml-2">
+                  <TableActions actions={chargeCardActions} />
+                </div>
+              )}
           </div>
         </div>
-        {/* TODO: Not sure where this info lives - its not in designs. Will come back to it */}
         {/* <BookingItemBadges
           booking={booking}
           isPending={isPending}
@@ -813,7 +597,6 @@ function BookingListItemAction(booking: BookingItemProps) {
           userTimeFormat={userTimeFormat}
           userTimeZone={userTimeZone}
           isRescheduled={isRescheduled}
-          isRejected={isRejected}
         /> */}
       </div>
 
@@ -835,7 +618,6 @@ const BookingItemBadges = ({
   userTimeFormat,
   userTimeZone,
   isRescheduled,
-  isRejected,
 }: {
   booking: BookingItemProps;
   isPending: boolean;
@@ -843,17 +625,11 @@ const BookingItemBadges = ({
   userTimeFormat: number | null | undefined;
   userTimeZone: string | undefined;
   isRescheduled: boolean;
-  isRejected: boolean;
 }) => {
   const { t } = useLocale();
 
   return (
     <div className="hidden h-9 flex-row items-center pb-4 pl-6 sm:flex">
-      {isRejected && (
-        <Badge className="ltr:mr-2 rtl:ml-2" variant="red">
-          {t("rejected")}
-        </Badge>
-      )}
       {isPending && (
         <Badge className="ltr:mr-2 rtl:ml-2" variant="orange">
           {t("unconfirmed")}
@@ -865,6 +641,11 @@ const BookingItemBadges = ({
             {t("rescheduled")}
           </Badge>
         </Tooltip>
+      )}
+      {booking.eventType?.team && (
+        <Badge className="ltr:mr-2 rtl:ml-2" variant="gray">
+          {booking.eventType.team.name}
+        </Badge>
       )}
       {booking?.assignmentReason.length > 0 && (
         <AssignmentReasonTooltip assignmentReason={booking.assignmentReason[0]} />
@@ -1380,4 +1161,4 @@ const AssignmentReasonTooltip = ({ assignmentReason }: { assignmentReason: Assig
   );
 };
 
-export default BookingListItemAction;
+export default BookingListItem;
