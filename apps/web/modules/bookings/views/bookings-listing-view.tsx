@@ -114,60 +114,10 @@ type RowData =
       label: string;
     };
 
-function BookingsTable({
-  data,
-  tableContainerRef,
-  query,
-  status,
-  t,
-  table,
-  toolbarComponent: ToolbarComponent,
-}: {
-  data: RowData[];
-  columns: any[];
-  tableContainerRef: React.RefObject<HTMLDivElement>;
-  query: any;
-  status: BookingListingStatus;
-  t: any;
-  table: any;
-  toolbarComponent: React.ComponentType;
-}) {
-  return (
-    <>
-      <DataTableWrapper
-        className="mb-6"
-        tableContainerRef={tableContainerRef}
-        table={table}
-        testId={`${status}-bookings`}
-        bodyTestId="bookings"
-        isPending={query.isPending}
-        totalRowCount={data.length}
-        paginationMode="standard"
-        ToolbarLeft={<ToolbarComponent />}
-        LoaderView={<SkeletonLoader />}
-        rowClassName={(row) => ((row.original as RowData).type === "header" ? "bg-muted" : "h-[52px]")}
-        EmptyView={
-          <div className="flex items-center justify-center pt-2 xl:pt-0">
-            <EmptyScreen
-              Icon="calendar"
-              headline={t("no_status_bookings_yet", { status: t(status).toLowerCase() })}
-              description={t("no_status_bookings_yet_description", {
-                status: t(status).toLowerCase(),
-                description: t(descriptionByStatus[status]),
-              })}
-            />
-          </div>
-        }
-      />
-    </>
-  );
-}
-
 function BookingsContent({ status }: BookingsProps) {
   const { t } = useLocale();
   const user = useMeQuery().data;
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const todayTableContainerRef = useRef<HTMLDivElement>(null);
 
   const eventTypeIds = useFilterValue("eventTypeId", ZMultiSelectFilterValue)?.data as number[] | undefined;
   const teamIds = useFilterValue("teamId", ZMultiSelectFilterValue)?.data as number[] | undefined;
@@ -522,15 +472,32 @@ function BookingsContent({ status }: BookingsProps) {
               {!!bookingsToday.length && (
                 <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
               )}
-              <BookingsTable
-                data={finalData}
-                columns={columns()}
+              <DataTableWrapper
+                className="mb-6"
                 tableContainerRef={tableContainerRef}
-                query={query}
-                status={status}
-                t={t}
                 table={defaultTable}
-                toolbarComponent={SharedToolbar}
+                testId={`${status}-bookings`}
+                bodyTestId="bookings"
+                isPending={query.isPending}
+                totalRowCount={finalData.length}
+                paginationMode="standard"
+                ToolbarLeft={<SharedToolbar />}
+                LoaderView={<SkeletonLoader />}
+                rowClassName={(row) =>
+                  (row.original as RowData).type === "header" ? "bg-muted" : "h-[52px]"
+                }
+                EmptyView={
+                  <div className="flex items-center justify-center pt-2 xl:pt-0">
+                    <EmptyScreen
+                      Icon="calendar"
+                      headline={t("no_status_bookings_yet", { status: t(status).toLowerCase() })}
+                      description={t("no_status_bookings_yet_description", {
+                        status: t(status).toLowerCase(),
+                        description: t(descriptionByStatus[status]),
+                      })}
+                    />
+                  </div>
+                }
               />
             </>
           )}
