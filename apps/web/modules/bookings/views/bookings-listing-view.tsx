@@ -36,7 +36,7 @@ import type { VerticalTabItemProps } from "@calcom/ui/components/navigation";
 
 import useMeQuery from "@lib/hooks/useMeQuery";
 
-import BookingListItem from "@components/booking/BookingListItem";
+import BookingListItemAction from "@components/booking/BookingListItemAction";
 import SkeletonLoader from "@components/booking/SkeletonLoader";
 
 import { useFacetedUniqueValues } from "~/bookings/hooks/useFacetedUniqueValues";
@@ -110,7 +110,8 @@ type RowData =
       recurringInfo?: RecurringInfo;
     }
   | {
-      type: "today" | "next";
+      type: "header";
+      label: string;
     };
 
 function BookingsTable({
@@ -120,8 +121,7 @@ function BookingsTable({
   status,
   t,
   table,
-  hideToolbar = false,
-  toolbarComponent: ToolbarComponent,
+  toolbarComponent,
 }: {
   data: RowData[];
   columns: any[];
@@ -130,8 +130,7 @@ function BookingsTable({
   status: BookingListingStatus;
   t: any;
   table: any;
-  hideToolbar?: boolean;
-  toolbarComponent?: React.ComponentType;
+  toolbarComponent?: React.ReactNode;
 }) {
   return (
     <>
@@ -144,7 +143,7 @@ function BookingsTable({
         isPending={query.isPending}
         totalRowCount={data.length}
         paginationMode="standard"
-        ToolbarLeft={!hideToolbar && ToolbarComponent && <ToolbarComponent />}
+        ToolbarLeft={toolbarComponent && toolbarComponent}
         LoaderView={<SkeletonLoader />}
         EmptyView={
           <div className="flex items-center justify-center pt-2 xl:pt-0">
@@ -205,7 +204,7 @@ function BookingsContent({ status }: BookingsProps) {
           header: t("event_type"),
           enableColumnFilter: true,
           enableSorting: false,
-          cell: () => null,
+
           meta: {
             filter: {
               type: ColumnFilterType.MULTI_SELECT,
@@ -280,7 +279,9 @@ function BookingsContent({ status }: BookingsProps) {
           id: "date",
           header: isToday ? t("today") : t("date"),
           cell: (props) => {
-            if (props.row.original.type === "data") {
+            if (props.row.original.type === "header") {
+              return <div className="font-bold">{props.row.original.label}</div>;
+            } else if (props.row.original.type === "data") {
               return (
                 <DateColumn
                   startTime={props.row.original.booking.startTime}
@@ -349,7 +350,7 @@ function BookingsContent({ status }: BookingsProps) {
             if (props.row.original.type === "data") {
               const { booking, recurringInfo, isToday } = props.row.original;
               return (
-                <BookingListItem
+                <BookingListItemAction
                   {...booking}
                   listingStatus={status}
                   recurringInfo={recurringInfo}
@@ -433,12 +434,17 @@ function BookingsContent({ status }: BookingsProps) {
       return flatData;
     }
     const merged: RowData[] = [];
+
     if (bookingsToday.length > 0) {
+      merged.push({ type: "header", label: "Today" });
       merged.push(...bookingsToday);
     }
+
     if (flatData.length > 0) {
+      merged.push({ type: "header", label: "Upcoming" });
       merged.push(...flatData);
     }
+
     return merged;
   }, [bookingsToday, flatData, status]);
 
@@ -476,17 +482,6 @@ function BookingsContent({ status }: BookingsProps) {
     },
   };
 
-  const todayTable = useReactTable<RowData>({
-    ...commonTableOptions,
-    columns: columns(true),
-    data: bookingsToday,
-  });
-
-  const upcomingTable = useReactTable<RowData>({
-    ...commonTableOptions,
-    data: flatData,
-  });
-
   const defaultTable = useReactTable<RowData>({
     ...commonTableOptions,
     data: finalData,
@@ -496,7 +491,7 @@ function BookingsContent({ status }: BookingsProps) {
   const SharedToolbar = () => (
     <div className="mb-2 flex flex-wrap justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <DataTableFilters.FilterBar table={status === "upcoming" ? upcomingTable : defaultTable} />
+        <DataTableFilters.FilterBar table={defaultTable} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <DataTableFilters.ClearFiltersButton />
@@ -528,29 +523,14 @@ function BookingsContent({ status }: BookingsProps) {
                   {!!bookingsToday.length && (
                     <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
                   )}
-                  <SharedToolbar />
-                  {!!bookingsToday.length && (
-                    <BookingsTable
-                      data={bookingsToday}
-                      columns={columns()}
-                      tableContainerRef={todayTableContainerRef}
-                      query={query}
-                      status={status}
-                      t={t}
-                      table={todayTable}
-                      hideToolbar={true}
-                      toolbarComponent={SharedToolbar}
-                    />
-                  )}
                   <BookingsTable
-                    data={flatData}
+                    data={finalData}
                     columns={columns()}
                     tableContainerRef={tableContainerRef}
                     query={query}
                     status={status}
                     t={t}
-                    table={upcomingTable}
-                    hideToolbar={true}
+                    table={defaultTable}
                     toolbarComponent={SharedToolbar}
                   />
                 </>

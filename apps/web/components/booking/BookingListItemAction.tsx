@@ -101,7 +101,7 @@ const isBookingReroutable = (booking: ParsedBooking): booking is ReroutableBooki
   return !!booking.routedFromRoutingFormReponse && !!booking.eventType?.team;
 };
 
-function BookingListItem(booking: BookingItemProps) {
+function BookingListItemAction(booking: BookingItemProps) {
   const parsedBooking = buildParsedBooking(booking);
 
   const { userTimeZone, userTimeFormat, userEmail } = booking.loggedInUser;
@@ -1380,4 +1380,4 @@ const AssignmentReasonTooltip = ({ assignmentReason }: { assignmentReason: Assig
   );
 };
 
-export default BookingListItem;
+export default BookingListItemAction;
