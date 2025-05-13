@@ -9,7 +9,7 @@ type EventColumnProps = {
   showPendingPayment: boolean;
 };
 
-export const EventColumn = ({ title, description, isCancelled, showPendingPayment }: EventColumnProps) => {
+export const EventColumn = ({ title, isCancelled, showPendingPayment }: EventColumnProps) => {
   const { t } = useLocale();
 
   return (
@@ -17,9 +17,10 @@ export const EventColumn = ({ title, description, isCancelled, showPendingPaymen
       <div
         title={title}
         className={classNames(
-          "max-w-10/12 sm:max-w-56 text-emphasis text-sm font-medium leading-6 md:max-w-full",
+          "max-w-10/12 sm:max-w-56 text-emphasis flex items-center gap-2 text-sm font-medium leading-6 md:max-w-full",
           isCancelled ? "line-through" : ""
         )}>
+        <div className="bg-subtle h-4 w-0.5 rounded-lg" />
         {title}
         {showPendingPayment && (
           <Badge className="hidden sm:inline-flex" variant="orange">
@@ -27,13 +28,6 @@ export const EventColumn = ({ title, description, isCancelled, showPendingPaymen
           </Badge>
         )}
       </div>
-      {description && (
-        <div
-          className="max-w-10/12 sm:max-w-32 md:max-w-52 xl:max-w-80 text-default truncate text-sm"
-          title={description}>
-          &quot;{description}&quot;
-        </div>
-      )}
     </div>
   );
 };

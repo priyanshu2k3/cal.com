@@ -280,8 +280,9 @@ function BookingsContent({ status }: BookingsProps) {
           header: isToday ? t("today") : t("date"),
           cell: (props) => {
             if (props.row.original.type === "header") {
-              return <div className="border border-red-500 font-bold ">{props.row.original.label}</div>;
-            } else if (props.row.original.type === "data") {
+              return <div className="text-subtle text-sm leading-none">{props.row.original.label}</div>;
+            }
+            if (props.row.original.type === "data") {
               return (
                 <DateColumn
                   startTime={props.row.original.booking.startTime}
@@ -322,7 +323,6 @@ function BookingsContent({ status }: BookingsProps) {
               return (
                 <EventColumn
                   title={booking.title}
-                  description={booking.description}
                   isCancelled={booking.status === "CANCELLED"}
                   showPendingPayment={!!(booking.payment.length && !booking.paid)}
                 />
