@@ -469,6 +469,7 @@ function BookingListItem(booking: BookingItemProps) {
     {
       id: "view_recordings",
       label: showCheckRecordingButton ? t("check_for_recordings") : t("view_recordings"),
+      labelSrOnly: true,
       onClick: () => {
         setViewRecordingsDialogIsOpen(true);
       },

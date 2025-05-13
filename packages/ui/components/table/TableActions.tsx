@@ -82,7 +82,7 @@ export const TableActions: FC<Props> = ({ actions }) => {
         {actions.map((action) => {
           const button = (
             <Button
-              size="sm"
+              size={action.labelSrOnly ? "sm" : "xs"}
               variant={action.labelSrOnly ? "icon" : "button"}
               className="whitespace-nowrap"
               key={action.id}

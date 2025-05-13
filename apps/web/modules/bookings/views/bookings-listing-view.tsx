@@ -424,6 +424,10 @@ function BookingsContent({ status }: BookingsProps) {
     enableSorting: true,
     initialState: {
       columnVisibility: sharedColumnVisibility,
+      columnPinning: {
+        left: ["date"],
+        right: ["actions"],
+      },
     },
     onColumnVisibilityChange: setSharedColumnVisibility,
     onSortingChange: setSharedSorting,
