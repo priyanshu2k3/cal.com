@@ -121,7 +121,7 @@ function BookingsTable({
   status,
   t,
   table,
-  toolbarComponent,
+  toolbarComponent: ToolbarComponent,
 }: {
   data: RowData[];
   columns: any[];
@@ -130,7 +130,7 @@ function BookingsTable({
   status: BookingListingStatus;
   t: any;
   table: any;
-  toolbarComponent?: React.ReactNode;
+  toolbarComponent: React.ComponentType;
 }) {
   return (
     <>
@@ -143,7 +143,7 @@ function BookingsTable({
         isPending={query.isPending}
         totalRowCount={data.length}
         paginationMode="standard"
-        ToolbarLeft={toolbarComponent && toolbarComponent}
+        ToolbarLeft={<ToolbarComponent />}
         LoaderView={<SkeletonLoader />}
         EmptyView={
           <div className="flex items-center justify-center pt-2 xl:pt-0">
@@ -280,7 +280,7 @@ function BookingsContent({ status }: BookingsProps) {
           header: isToday ? t("today") : t("date"),
           cell: (props) => {
             if (props.row.original.type === "header") {
-              return <div className="font-bold">{props.row.original.label}</div>;
+              return <div className="border border-red-500 font-bold ">{props.row.original.label}</div>;
             } else if (props.row.original.type === "data") {
               return (
                 <DateColumn
@@ -518,35 +518,19 @@ function BookingsContent({ status }: BookingsProps) {
           )}
           {query.status !== "error" && (
             <>
-              {status === "upcoming" && (
-                <>
-                  {!!bookingsToday.length && (
-                    <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
-                  )}
-                  <BookingsTable
-                    data={finalData}
-                    columns={columns()}
-                    tableContainerRef={tableContainerRef}
-                    query={query}
-                    status={status}
-                    t={t}
-                    table={defaultTable}
-                    toolbarComponent={SharedToolbar}
-                  />
-                </>
+              {!!bookingsToday.length && (
+                <WipeMyCalActionButton bookingStatus={status} bookingsEmpty={isEmpty} />
               )}
-              {status !== "upcoming" && (
-                <BookingsTable
-                  data={finalData}
-                  columns={columns()}
-                  tableContainerRef={tableContainerRef}
-                  query={query}
-                  status={status}
-                  t={t}
-                  table={defaultTable}
-                  toolbarComponent={SharedToolbar}
-                />
-              )}
+              <BookingsTable
+                data={finalData}
+                columns={columns()}
+                tableContainerRef={tableContainerRef}
+                query={query}
+                status={status}
+                t={t}
+                table={defaultTable}
+                toolbarComponent={SharedToolbar}
+              />
             </>
           )}
         </div>
