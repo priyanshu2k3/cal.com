@@ -563,6 +563,57 @@ function BookingListItem(booking: BookingItemProps) {
         data-today={String(booking.isToday)}
         className="hover:bg-muted group w-full">
         <div className="flex flex-col sm:flex-row">
+          <div
+            data-testid="title-and-attendees"
+            className={`w-full px-4${isRejected ? " line-through" : ""}`}>
+            <Link href={bookingLink}>
+              {/* Time and Badges for mobile */}
+              <div className="w-full pb-2 pt-4 sm:hidden">
+                {isPending && (
+                  <Badge className="ltr:mr-2 rtl:ml-2 sm:hidden" variant="orange">
+                    {t("unconfirmed")}
+                  </Badge>
+                )}
+                {booking.eventType?.team && (
+                  <Badge className="ltr:mr-2 rtl:ml-2 sm:hidden" variant="gray">
+                    {booking.eventType.team.name}
+                  </Badge>
+                )}
+                {showPendingPayment && (
+                  <Badge className="ltr:mr-2 rtl:ml-2 sm:hidden" variant="orange">
+                    {t("pending_payment")}
+                  </Badge>
+                )}
+                {recurringDates !== undefined && (
+                  <div className="text-muted text-sm sm:hidden">
+                    <RecurringBookingsTooltip
+                      userTimeFormat={userTimeFormat}
+                      userTimeZone={userTimeZone}
+                      booking={booking}
+                      recurringDates={recurringDates}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="cursor-pointer py-4">
+                {/* {booking.attendees.length !== 0 && (
+                  <DisplayAttendees
+                    attendees={attendeeList}
+                    user={booking.user}
+                    currentEmail={userEmail}
+                    bookingUid={booking.uid}
+                    isBookingInPast={isBookingInPast}
+                  />
+                )} */}
+                {isCancelled && booking.rescheduled && (
+                  <div className="mt-2 inline-block md:hidden">
+                    <RequestSentMessage />
+                  </div>
+                )}
+              </div>
+            </Link>
+          </div>
           <div className="flex w-full flex-col flex-wrap items-end justify-end space-x-2 space-y-2 py-4 pl-4 text-right text-sm font-medium ltr:pr-4 rtl:pl-4 sm:flex-row sm:flex-nowrap sm:items-start sm:space-y-0 sm:pl-0">
             {isUpcoming && !isCancelled ? (
               <>
@@ -590,14 +641,14 @@ function BookingListItem(booking: BookingItemProps) {
               )}
           </div>
         </div>
-        {/* <BookingItemBadges
+        <BookingItemBadges
           booking={booking}
           isPending={isPending}
           recurringDates={recurringDates}
           userTimeFormat={userTimeFormat}
           userTimeZone={userTimeZone}
           isRescheduled={isRescheduled}
-        /> */}
+        />
       </div>
 
       {isBookingFromRoutingForm && (
