@@ -341,6 +341,9 @@ function BookingListItem(booking: BookingItemProps) {
     {
       id: "edit_booking",
       label: t("edit"),
+      icon: "ellipsis" as const,
+      hideChevron: true,
+      labelSrOnly: true,
       actions: editBookingActions,
     },
   ];
@@ -641,14 +644,14 @@ function BookingListItem(booking: BookingItemProps) {
               )}
           </div>
         </div>
-        <BookingItemBadges
+        {/* <BookingItemBadges
           booking={booking}
           isPending={isPending}
           recurringDates={recurringDates}
           userTimeFormat={userTimeFormat}
           userTimeZone={userTimeZone}
           isRescheduled={isRescheduled}
-        />
+        /> */}
       </div>
 
       {isBookingFromRoutingForm && (

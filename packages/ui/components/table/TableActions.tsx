@@ -18,6 +18,8 @@ export type ActionType = {
   icon?: IconName;
   iconClassName?: string;
   label: string;
+  labelSrOnly?: boolean;
+  hideChevron?: boolean;
   disabled?: boolean;
   color?: ButtonBaseProps["color"];
   bookingId?: number;
@@ -46,7 +48,7 @@ export const DropdownActions = ({
     <Dropdown>
       {!actionTrigger ? (
         <DropdownMenuTrigger asChild>
-          <Button type="button" color="secondary" variant="icon" StartIcon="ellipsis" />
+          <Button type="button" color="secondary" variant="icon" StartIcon="ellipsis" size="sm" />
         </DropdownMenuTrigger>
       ) : (
         <DropdownMenuTrigger asChild>{actionTrigger}</DropdownMenuTrigger>
@@ -76,21 +78,23 @@ export const DropdownActions = ({
 export const TableActions: FC<Props> = ({ actions }) => {
   return (
     <>
-      <div className="flex space-x-2 rtl:space-x-reverse">
+      <div className="flex items-center space-x-2 rtl:space-x-reverse">
         {actions.map((action) => {
           const button = (
             <Button
+              size="sm"
+              variant={action.labelSrOnly ? "icon" : "button"}
               className="whitespace-nowrap"
               key={action.id}
               data-testid={action.id}
               href={action.href}
               onClick={action.onClick || defaultAction}
               StartIcon={action.icon}
-              {...(action?.actions ? { EndIcon: "chevron-down" } : null)}
+              {...(action?.actions && !action.hideChevron ? { EndIcon: "chevron-down" } : null)}
               disabled={action.disabled}
               data-bookingid={action.bookingId}
               color={action.color || "secondary"}>
-              {action.label}
+              {action.labelSrOnly ? <span className="sr-only">{action.label}</span> : action.label}
             </Button>
           );
           if (!action.actions) {
