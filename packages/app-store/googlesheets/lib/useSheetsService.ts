@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
 import { trpc } from "@calcom/trpc/react";
@@ -19,8 +21,9 @@ export const useSheetsService = (credentials: any[]): SheetsServiceHook => {
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Use type assertion for all trpc methods to avoid type leakage
+  // Cast the entire trpc object to any to avoid type collisions with built-in methods
   const trpcAny = trpc as any;
+  // Use useUtils instead of useContext to avoid method name collisions
   const utils = trpcAny.useUtils();
 
   // Use type assertion for the entire chain to prevent type leakage

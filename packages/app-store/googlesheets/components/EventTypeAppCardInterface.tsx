@@ -50,6 +50,7 @@ export const EventTypeAppCard = ({ eventType, app }: EventTypeAppCardComponentPr
     name: String(sheet.name || ""),
   }));
 
+  // Cast the entire trpc object to any to avoid type collisions with built-in methods
   const trpcAny = trpc as any;
   const updateEventTypeMutation = trpcAny.viewer.eventTypes.update.useMutation({
     onSuccess: async () => {
