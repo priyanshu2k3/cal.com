@@ -7,7 +7,8 @@ export const useAppCredentials = (appSlug: string) => {
   const { data: session } = useSession();
   const [credentials, setCredentials] = useState<any[]>([]);
 
-  const { data: apps, isLoading } = (trpc as any).viewer.apps.listLocal.useQuery(
+  const trpcAny = trpc as any;
+  const { data: apps, isLoading } = trpcAny.viewer.apps.listLocal.useQuery(
     { category: "other" },
     {
       enabled: !!session?.user?.id,

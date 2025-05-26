@@ -21,17 +21,18 @@ export const useSheetsService = (credentials: any[]): SheetsServiceHook => {
 
   // Use type assertion for all trpc methods to avoid type leakage
   const trpcAny = trpc as any;
-  const utils = trpcAny.useContext();
+  const utils = trpcAny.useUtils();
 
   // Use type assertion for the entire chain to prevent type leakage
   const googleSheetsRouter = trpcAny.viewer.googleSheets;
 
+  // Use type assertion for the query to prevent type leakage
   const listSpreadsheetsQuery = googleSheetsRouter.listSpreadsheets.useQuery(
     { credentialId: credentialId || 0 },
     { enabled: !!credentialId }
   );
 
-  const createSpreadsheetMutation = (googleSheetsRouter as any).createSpreadsheet.useMutation({
+  const createSpreadsheetMutation = googleSheetsRouter.createSpreadsheet.useMutation({
     onSuccess: (data: { spreadsheetId?: string; properties?: { title?: string } }) => {
       if (data && typeof data === "object" && "spreadsheetId" in data) {
         const spreadsheetId =
@@ -61,7 +62,7 @@ export const useSheetsService = (credentials: any[]): SheetsServiceHook => {
     },
   });
 
-  const setupBookingSheetMutation = (googleSheetsRouter as any).setupBookingSheet.useMutation();
+  const setupBookingSheetMutation = googleSheetsRouter.setupBookingSheet.useMutation();
 
   // Set credential ID when credentials change
   useEffect(() => {

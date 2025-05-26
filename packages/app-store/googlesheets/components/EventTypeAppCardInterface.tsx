@@ -55,7 +55,7 @@ export const EventTypeAppCard = ({ eventType, app }: EventTypeAppCardComponentPr
     onSuccess: async () => {
       showToast(t("event_type_updated_successfully"), "success");
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       showToast(error.message || t("error_updating_event_type"), "error");
     },
   });
