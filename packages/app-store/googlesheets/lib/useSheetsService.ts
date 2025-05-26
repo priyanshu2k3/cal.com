@@ -21,9 +21,9 @@ export const useSheetsService = (credentials: any[]): SheetsServiceHook => {
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cast the entire trpc object to any to avoid type collisions with built-in methods
+  // Use trpc as any to avoid type collisions with built-in methods
   const trpcAny = trpc as any;
-  // Use useUtils instead of useContext to avoid method name collisions
+  // Use useUtils directly from trpcAny to avoid method name collisions
   const utils = trpcAny.useUtils();
 
   // Use type assertion for the entire chain to prevent type leakage
@@ -124,6 +124,7 @@ export const useSheetsService = (credentials: any[]): SheetsServiceHook => {
 
     setIsLoading(true);
     try {
+      // Use type assertion for refetch to prevent type leakage
       const result = await listSpreadsheetsQuery.refetch();
       const sheets = processSpreadsheetList(result.data);
       setSpreadsheets(sheets);

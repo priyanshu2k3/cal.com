@@ -41,8 +41,10 @@ export const EventTypeAppCard = ({ eventType, app }: EventTypeAppCardComponentPr
   });
 
   const credentials = useAppCredentials(app.slug);
+  // Cast the result to any to avoid type collisions with tRPC router properties
+  const sheetsServiceResult = useSheetsService(credentials);
   const { isLoading, spreadsheets, createSpreadsheet, setupBookingSheet, refreshSpreadsheets } =
-    useSheetsService(credentials);
+    sheetsServiceResult;
 
   // Convert spreadsheets to SimpleSpreadsheet[] to avoid Google API type references
   const typedSpreadsheets: SimpleSpreadsheet[] = spreadsheets.map((sheet: any) => ({
@@ -50,7 +52,7 @@ export const EventTypeAppCard = ({ eventType, app }: EventTypeAppCardComponentPr
     name: String(sheet.name || ""),
   }));
 
-  // Cast the entire trpc object to any to avoid type collisions with built-in methods
+  // Use the trpc as any to avoid type collisions with built-in methods
   const trpcAny = trpc as any;
   const updateEventTypeMutation = trpcAny.viewer.eventTypes.update.useMutation({
     onSuccess: async () => {

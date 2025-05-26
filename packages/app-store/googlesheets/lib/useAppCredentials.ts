@@ -9,12 +9,12 @@ export const useAppCredentials = (appSlug: string) => {
   const { data: session } = useSession();
   const [credentials, setCredentials] = useState<any[]>([]);
 
-  // Cast the entire trpc object to any to avoid type collisions with built-in methods
+  // Use trpc as any to avoid type collisions with built-in methods
   const trpcAny = trpc as any;
   const { data: apps, isLoading } = trpcAny.viewer.apps.listLocal.useQuery(
     { category: "other" },
     {
-      enabled: !!session?.user?.id,
+      enabled: !!session?.user,
     }
   );
 
