@@ -195,21 +195,26 @@ export const sendRoundRobinRescheduledEmailsAndSMS = async (
 
   for (const person of teamMembersAndAttendees) {
     const isAttendee = calendarEvent.attendees.some((attendee) => attendee.email === person.email);
-    const isHost = !isAttendee;
+    const isTeamMember = calendarEvent.team?.members.some((member) => member.email === person.email);
 
-    if (isHost && !eventTypeDisableHostEmail(eventTypeMetadata)) {
+    if (isAttendee && !!isTeamMember) {
+      if (!eventTypeDisableAttendeeEmail(eventTypeMetadata)) {
+        emailsAndSMSToSend.push(sendEmail(() => new AttendeeRescheduledEmail(calendarEvent, person)));
+        if (person.phoneNumber) {
+          emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(person));
+        }
+      }
+    } else if (!!isTeamMember && !eventTypeDisableHostEmail(eventTypeMetadata)) {
       emailsAndSMSToSend.push(
         sendEmail(() => new OrganizerRescheduledEmail({ calEvent: calendarEvent, teamMember: person }))
       );
       if (person.phoneNumber) {
         emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(person));
       }
-    } else if (isAttendee) {
-      if (!eventTypeDisableAttendeeEmail(eventTypeMetadata)) {
-        emailsAndSMSToSend.push(sendEmail(() => new AttendeeRescheduledEmail(calendarEvent, person)));
-        if (person.phoneNumber) {
-          emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(person));
-        }
+    } else if (isAttendee && !eventTypeDisableAttendeeEmail(eventTypeMetadata)) {
+      emailsAndSMSToSend.push(sendEmail(() => new AttendeeRescheduledEmail(calendarEvent, person)));
+      if (person.phoneNumber) {
+        emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(person));
       }
     }
   }
@@ -245,9 +250,16 @@ export const sendRoundRobinCancelledEmailsAndSMS = async (
 
   for (const teamMember of members) {
     const isAttendee = calendarEvent.attendees.some((attendee) => attendee.email === teamMember.email);
-    const isHost = !isAttendee;
+    const isTeamMember = calendarEvent.team?.members.some((member) => member.email === teamMember.email);
 
-    if (isHost && !eventTypeDisableHostEmail(eventTypeMetadata)) {
+    if (isAttendee && !!isTeamMember) {
+      if (!eventTypeDisableAttendeeEmail(eventTypeMetadata)) {
+        emailsAndSMSToSend.push(sendEmail(() => new AttendeeCancelledEmail(calendarEvent, teamMember)));
+        if (teamMember.phoneNumber) {
+          emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(teamMember));
+        }
+      }
+    } else if (!!isTeamMember && !eventTypeDisableHostEmail(eventTypeMetadata)) {
       if (!reassignedTo) {
         emailsAndSMSToSend.push(
           sendEmail(() => new OrganizerCancelledEmail({ calEvent: calendarEvent, teamMember }))
@@ -266,7 +278,6 @@ export const sendRoundRobinCancelledEmailsAndSMS = async (
       }
     } else if (isAttendee && !eventTypeDisableAttendeeEmail(eventTypeMetadata)) {
       emailsAndSMSToSend.push(sendEmail(() => new AttendeeCancelledEmail(calendarEvent, teamMember)));
-
       if (teamMember.phoneNumber) {
         emailsAndSMSToSend.push(successfullyReScheduledSMS.sendSMSToAttendee(teamMember));
       }
