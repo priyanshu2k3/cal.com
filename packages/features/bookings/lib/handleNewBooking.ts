@@ -278,10 +278,23 @@ export const buildEventForTeamEventType = async ({
   const teamDestinationCalendars: DestinationCalendar[] = [];
   const fixedUsers = users.filter((user) => user.isFixed);
   const nonFixedUsers = users.filter((user) => !user.isFixed);
-  const filteredUsers =
-    schedulingType === SchedulingType.ROUND_ROBIN
-      ? [...fixedUsers, ...(nonFixedUsers.length > 0 ? [nonFixedUsers[0]] : [])]
-      : users;
+
+  let filteredUsers: typeof users;
+  if (schedulingType === SchedulingType.ROUND_ROBIN) {
+    const organizerInFixed = fixedUsers.find((user) => user.email === organizerUser.email);
+    if (organizerInFixed) {
+      filteredUsers = [...fixedUsers, ...(nonFixedUsers.length > 0 ? [nonFixedUsers[0]] : [])];
+    } else {
+      const organizerInNonFixed = nonFixedUsers.find((user) => user.email === organizerUser.email);
+      if (organizerInNonFixed) {
+        filteredUsers = [...fixedUsers, organizerInNonFixed];
+      } else {
+        filteredUsers = [...fixedUsers, ...(nonFixedUsers.length > 0 ? [nonFixedUsers[0]] : [])];
+      }
+    }
+  } else {
+    filteredUsers = users;
+  }
 
   // Organizer or user owner of this event type it's not listed as a team member.
   const teamMemberPromises = filteredUsers
@@ -894,9 +907,30 @@ async function handler(
   }
 
   // If the team member is requested then they should be the organizer
-  const organizerUser = reqBody.teamMemberEmail
+  let organizerUser = reqBody.teamMemberEmail
     ? users.find((user) => user.email === reqBody.teamMemberEmail) ?? users[0]
     : users[0];
+
+  // For seated events, check if there's an existing booking and use its organizer
+  if (eventType.seatsPerTimeSlot && (rescheduleUid || reqBody.bookingUid)) {
+    const existingSeatedBooking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { uid: rescheduleUid || reqBody.bookingUid },
+          {
+            eventTypeId: eventType.id,
+            startTime: new Date(reqBody.start),
+            status: BookingStatus.ACCEPTED,
+          },
+        ],
+      },
+      include: { user: true },
+    });
+
+    if (existingSeatedBooking?.user) {
+      organizerUser = existingSeatedBooking.user;
+    }
+  }
 
   const tOrganizer = await getTranslation(organizerUser?.locale ?? "en", "common");
   const allCredentials = await getAllCredentialsIncludeServiceAccountKey(organizerUser, eventType);
