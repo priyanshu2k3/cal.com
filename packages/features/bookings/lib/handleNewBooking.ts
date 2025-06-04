@@ -258,6 +258,8 @@ export const buildEventForTeamEventType = async ({
   organizerUser,
   schedulingType,
   team,
+  isSubsequentSeatBooking = false,
+  originalBookingUserId,
 }: {
   existingEvent: Partial<CalendarEvent>;
   users: (Pick<User, "id" | "name" | "timeZone" | "locale" | "email"> & {
@@ -270,6 +272,8 @@ export const buildEventForTeamEventType = async ({
     id: number;
     name: string;
   } | null;
+  isSubsequentSeatBooking?: boolean;
+  originalBookingUserId?: number;
 }) => {
   // not null assertion.
   if (!schedulingType) {
@@ -278,9 +282,12 @@ export const buildEventForTeamEventType = async ({
   const teamDestinationCalendars: DestinationCalendar[] = [];
   const fixedUsers = users.filter((user) => user.isFixed);
   const nonFixedUsers = users.filter((user) => !user.isFixed);
+  // - Subsequent seats: Include all fixed users and only the non-fixed user from the original booking
   const filteredUsers =
     schedulingType === SchedulingType.ROUND_ROBIN
-      ? [...fixedUsers, ...(nonFixedUsers.length > 0 ? [nonFixedUsers[0]] : [])]
+      ? isSubsequentSeatBooking && originalBookingUserId
+        ? [...fixedUsers, ...nonFixedUsers.filter((user) => user.id === originalBookingUserId)]
+        : [...fixedUsers, ...(nonFixedUsers.length > 0 ? [nonFixedUsers[0]] : [])]
       : users;
 
   // Organizer or user owner of this event type it's not listed as a team member.
@@ -1126,12 +1133,33 @@ async function handler(
   }
 
   if (isTeamEventType) {
+    let originalUserId: number | undefined = undefined;
+
+    if (!isFirstSeat && eventType.seatsPerTimeSlot) {
+      const existingBookingForSeats = await prisma.booking.findFirst({
+        where: {
+          eventTypeId: eventType.id,
+          startTime: new Date(dayjs(reqBody.start).utc().format()),
+          status: BookingStatus.ACCEPTED,
+        },
+        select: {
+          userId: true,
+        },
+      });
+
+      if (existingBookingForSeats && typeof existingBookingForSeats.userId === "number") {
+        originalUserId = existingBookingForSeats.userId;
+      }
+    }
+
     evt = await buildEventForTeamEventType({
       existingEvent: evt,
       schedulingType: eventType.schedulingType,
       users,
       team: eventType.team,
       organizerUser,
+      isSubsequentSeatBooking: !isFirstSeat,
+      originalBookingUserId: originalUserId,
     });
   }
 
