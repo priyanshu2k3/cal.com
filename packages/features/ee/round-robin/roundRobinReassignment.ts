@@ -246,6 +246,7 @@ export const roundRobinReassignment = async ({
         userId: reassignedRRHost.id,
         userPrimaryEmail: reassignedRRHost.email,
         title: newBookingTitle,
+        idempotencyKey: null, // Clear idempotencyKey to allow rebooking the same slot
       },
       select: bookingSelect,
     });

@@ -181,6 +181,7 @@ export const roundRobinManualReassignment = async ({
         userPrimaryEmail: newUser.email,
         reassignReason,
         reassignById: reassignedById,
+        idempotencyKey: null, // Clear idempotencyKey to allow rebooking the same slot
       },
       select: bookingSelect,
     });
