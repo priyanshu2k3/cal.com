@@ -487,7 +487,7 @@ class RoutingEventsInsights {
             .sort()
             .join(", ");
         } else if (header.type === "number") {
-          acc[header.label] = field.valueNumber || "";
+          acc[header.label] = field.valueNumber?.toString() || "";
         } else {
           acc[header.label] = field.valueString || "";
         }
