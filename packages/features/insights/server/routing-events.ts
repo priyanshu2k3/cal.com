@@ -16,6 +16,7 @@ import {
   isTextFilterValue,
   isNumberFilterValue,
   isMultiSelectFilterValue,
+  isSingleSelectFilterValue,
 } from "@calcom/features/data-table/lib/utils";
 import type {
   RoutingFormResponsesInput,
@@ -242,13 +243,24 @@ class RoutingEventsInsights {
 
     const fieldsWhereClause: Prisma.RoutingFormResponseFieldWhereInput[] = fieldFilters
       .map((fieldFilter): Prisma.RoutingFormResponseFieldWhereInput | null => {
+        if (isMultiSelectFilterValue(fieldFilter.value)) {
+          return {
+            AND: fieldFilter.value.data.map((value) => ({
+              fieldId: fieldFilter.id,
+              valueStringArray: {
+                has: String(value),
+              },
+            })),
+          } satisfies Prisma.RoutingFormResponseFieldWhereInput;
+        }
+
         let columnName: "valueString" | "valueNumber" | "valueStringArray" | undefined = undefined;
         if (isTextFilterValue(fieldFilter.value)) {
           columnName = "valueString";
         } else if (isNumberFilterValue(fieldFilter.value)) {
           columnName = "valueNumber";
-        } else if (isMultiSelectFilterValue(fieldFilter.value)) {
-          columnName = "valueStringArray";
+        } else if (isSingleSelectFilterValue(fieldFilter.value)) {
+          columnName = "valueString";
         }
         if (!columnName) {
           return null;
