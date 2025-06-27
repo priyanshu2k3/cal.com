@@ -38,7 +38,7 @@
     "@calcom/platform-constants": "*",
     "@calcom/platform-enums": "*",
     "@calcom/platform-libraries": "npm:@calcom/platform-libraries@0.0.230",
-    "@calcom/platform-libraries-0.0.2": "npm:@calcom/platform-libraries@0.0.2-patched-prisma-lru",
+    "@calcom/platform-libraries-0.0.2": "npm:@calcom/platform-libraries@0.0.2-patched-prisma-lru-debian",
     "@calcom/platform-types": "*",
     "@calcom/platform-utils": "*",
     "@calcom/prisma": "*",
